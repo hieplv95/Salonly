@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { addSourceAction, testAllAction, type SourceResult, type TestResult } from "../actions";
 
 const input = "h-10 w-full rounded-2xl border border-line bg-white/80 px-3 text-[14px] outline-none focus:border-gold";
@@ -46,9 +46,22 @@ export function AddSourceForm() {
   const [state, action, pending] = useActionState<SourceResult, FormData>(addSourceAction, undefined);
   const [kind, setKind] = useState<"vertex" | "studio">("vertex");
   const [auth, setAuth] = useState<"key" | "adc">("key");
+  const form = useRef<HTMLFormElement>(null);
+
+  // Không dùng <form action>: React tự xoá mọi ô sau mỗi lần gửi, nên bấm "Kiểm tra" xong
+  // là mất file khoá đã chọn. Gửi thủ công (kèm nút đã bấm) để giữ nguyên dữ liệu.
+  const submit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+    startTransition(() => action(fd));
+  };
+  // Thêm nguồn thành công thì làm trống form để thêm nguồn khác.
+  useEffect(() => {
+    if (state?.ok) form.current?.reset();
+  }, [state]);
 
   return (
-    <form action={action} className="space-y-3">
+    <form ref={form} onSubmit={submit} className="space-y-3">
       <input type="hidden" name="kind" value={kind} />
       <div className="grid grid-cols-2 gap-1 rounded-full bg-line/60 p-1">
         {(
