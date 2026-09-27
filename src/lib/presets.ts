@@ -137,9 +137,9 @@ export type ModelOption = Preset & { usd: number; vnd: number };
 
 // Giá mỗi ảnh (độ phân giải ~1K).
 export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
-  { id: "gemini-3.1-flash-lite-image", label: "Flash Lite", hint: "Nhanh, rẻ nhất", usd: 0.034, vnd: vnd(0.034) },
-  { id: "gemini-3.1-flash-image", label: "Flash", hint: "Cân bằng · nên dùng", usd: 0.067, vnd: vnd(0.067) },
-  { id: "gemini-3-pro-image", label: "Pro", hint: "Đẹp nhất, chậm hơn", usd: 0.134, vnd: vnd(0.134) },
+  { id: "gemini-3.1-flash-lite-image", label: "Chất lượng trung bình", hint: "Nhanh, rẻ nhất", usd: 0.034, vnd: vnd(0.034) },
+  { id: "gemini-3.1-flash-image", label: "Chất lượng tốt", hint: "Cân bằng · nên dùng", usd: 0.067, vnd: vnd(0.067) },
+  { id: "gemini-3-pro-image", label: "Chất lượng cao", hint: "Đẹp nhất, chậm hơn", usd: 0.134, vnd: vnd(0.134) },
 ];
 export const DEFAULT_IMAGE_MODEL = "gemini-3.1-flash-image";
 
@@ -148,9 +148,9 @@ const VIDEO_SECONDS = 8;
 const FRAME_USD = 0.067;
 const video = (perSecond: number) => perSecond * VIDEO_SECONDS + FRAME_USD;
 export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
-  { id: "veo-3.1-lite-generate-001", label: "Veo 3.1 Lite", hint: "720p · tiết kiệm", usd: video(0.05), vnd: vnd(video(0.05)) },
-  { id: "veo-3.1-fast-generate-001", label: "Veo 3.1 Fast", hint: "720p · đẹp hơn", usd: video(0.1), vnd: vnd(video(0.1)) },
-  { id: "veo-3.1-generate-001", label: "Veo 3.1", hint: "1080p · đẹp nhất", usd: video(0.4), vnd: vnd(video(0.4)) },
+  { id: "veo-3.1-lite-generate-001", label: "Chất lượng trung bình", hint: "720p · tiết kiệm", usd: video(0.05), vnd: vnd(video(0.05)) },
+  { id: "veo-3.1-fast-generate-001", label: "Chất lượng tốt", hint: "720p · đẹp hơn", usd: video(0.1), vnd: vnd(video(0.1)) },
+  { id: "veo-3.1-generate-001", label: "Chất lượng cao", hint: "1080p · đẹp nhất", usd: video(0.4), vnd: vnd(video(0.4)) },
 ];
 export const DEFAULT_VIDEO_MODEL = "veo-3.1-generate-001";
 

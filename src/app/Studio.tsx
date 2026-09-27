@@ -36,6 +36,7 @@ import { LogoFooter, LogoStudio, useLogoEditor } from "./logo/LogoStudio";
 import { LOGO_TEMPLATES } from "@/lib/logo-templates";
 import { PriceTabFooter, PriceTabStudio, usePriceTab } from "./menu/PriceTab";
 import { MENU_TEMPLATES } from "@/lib/menu-templates";
+import { VOUCHER_TEMPLATES } from "@/lib/voucher-templates";
 import { PRICE_TEMPLATES } from "@/lib/price-templates";
 import { CardFooter, CardStudio, useCardEditor } from "./card/CardStudio";
 import { CARD_TEMPLATES } from "@/lib/card-templates";
@@ -560,7 +561,6 @@ export function Studio({ user, quota: initialQuota, footer }: { user: SessionUse
                     ? `${imageOrder.length ? "Tạo lại" : "Tạo"} ${plannedJobs.length} ảnh`
                     : `Tạo ${plannedVideos.length} video`
                 }
-                price={(isPhotos ? plannedJobs.length : plannedVideos.length) * planModel.vnd}
               />
               </div>
             </div>
@@ -701,8 +701,6 @@ function Landing({
     </div>
   );
 }
-
-const vnd = (n: number) => `${n.toLocaleString("vi-VN")}đ`;
 
 const formatOf = (id: string, list: Format[]) => list.find((f) => f.id === id) ?? list[0];
 const modelOf = (id: string, list: ModelOption[]) => list.find((m) => m.id === id) ?? list[0];
@@ -906,13 +904,11 @@ function ActionButton({
   disabled,
   busy,
   label,
-  price,
 }: {
   onClick: () => void;
   disabled: boolean;
   busy: boolean;
   label: string;
-  price: number;
 }) {
   return (
     <button
@@ -926,7 +922,6 @@ function ActionButton({
         <IconSparkle className="h-4 w-4" />
       )}
       {label}
-      {price > 0 && <span className="rounded-full bg-cream/15 px-2 py-0.5 text-[11px] font-normal">≈ {vnd(price)}</span>}
     </button>
   );
 }
@@ -1271,7 +1266,7 @@ const MENU_TOOLS: { tab: Tab; title: string; desc: string; icon: () => React.Rea
   { tab: "logo", title: "Thiết kế logo", desc: `${LOGO_TEMPLATES.length} mẫu cho tiệm nail, tự sửa`, icon: () => <IconSparkle className="h-[18px] w-[18px]" />, badge: "Miễn phí" },
   { tab: "price", title: "Bảng giá dịch vụ", desc: `${MENU_TEMPLATES.length + PRICE_TEMPLATES.length} mẫu, menu 2 mặt in A4`, icon: () => <IconList />, badge: "Miễn phí" },
   { tab: "card", title: "Thẻ tích điểm", desc: `${CARD_TEMPLATES.length} mẫu, có ${CARD_TEMPLATES.filter((t) => t.isNew).length} mẫu mới · in 2 mặt`, icon: () => <IconCard />, badge: "Miễn phí" },
-  { tab: "voucher", title: "Voucher quà tặng", desc: "30 mẫu phiếu quà tặng, in khổ DL", icon: () => <IconGift />, badge: "Miễn phí" },
+  { tab: "voucher", title: "Voucher quà tặng", desc: `${VOUCHER_TEMPLATES.length} mẫu phiếu quà tặng, in khổ DL`, icon: () => <IconGift />, badge: "Miễn phí" },
   { tab: "flyer", title: "Tờ rơi quảng cáo", desc: `${FLYER_TEMPLATES.length + PROMO_TEMPLATES.length} mẫu khai trương & giảm giá, in A4`, icon: () => <IconFlyer />, badge: "Miễn phí" },
   { tab: "stamp", title: "Con dấu tích điểm", desc: `${STAMP_TEMPLATES.length} mẫu dấu tròn 1 cm, gửi xưởng khắc`, icon: () => <IconStamp />, badge: "Mới" },
 ];

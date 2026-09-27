@@ -1,10 +1,11 @@
 import { useId, type ReactNode, type Ref } from "react";
-import { VOUCHER_SIZE, isNewVoucherStyle, type VoucherDesign } from "@/lib/voucher-templates";
+import { VOUCHER_SIZE, isNewVoucherStyle, isTrendVoucherStyle, type VoucherDesign } from "@/lib/voucher-templates";
 import { F, HEART, mix, star, useSvgText } from "../design/svg-kit";
 import { LogoIcon } from "../logo/LogoSvg";
 import { Veins, hash } from "../price/PriceSvg";
 import { Bow, Rose, Sprig } from "./VoucherSvg";
 import { VoucherFreshSvg } from "./VoucherFreshSvg";
+import { VoucherTrendSvg } from "./VoucherTrendSvg";
 
 const { w: W, h: H } = VOUCHER_SIZE;
 const C = W / 2;
@@ -18,6 +19,7 @@ export function VoucherBackSvg({ design, svgRef, className }: { design: VoucherD
   const { T, key } = useSvgText(ink);
   const L: ReactNode[] = [];
   if (isNewVoucherStyle(design.style)) return <VoucherFreshSvg design={design} side="back" svgRef={svgRef} className={className} />;
+  if (isTrendVoucherStyle(design.style)) return <VoucherTrendSvg design={design} side="back" svgRef={svgRef} className={className} />;
   const copy = (x: number, y: number, width: number, size = 23, anchor: "start" | "middle" = "middle", fill = ink, gap = 39) => {
     L.push(T(design.backLine1, x, y, F.sans, size, width, { anchor, fill }));
     L.push(T(design.backLine2, x, y + gap, F.sans, size, width, { anchor, fill }));

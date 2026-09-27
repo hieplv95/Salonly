@@ -16,7 +16,6 @@
 .documentName{flex:1;min-width:100px;max-width:540px;margin-right:auto}
 .documentName input:not([type=file]):not([type=color]){border:none;background:transparent;padding:2px 0;font-size:14px;font-weight:600}
 .documentName small{display:block;color:#8a868e;font-size:10px;margin-top:3px}
-.header select{width:130px}
 .header .primary{background:#17161a;color:#fff;border-color:#17161a;padding:11px 19px;font-weight:600;white-space:nowrap}
 .header .primary:hover:not(:disabled){background:#2e2c33}
 .history{display:flex;gap:5px}.history button{font-size:23px;line-height:1;padding:7px 12px}
@@ -54,7 +53,7 @@
 .error{background:#fbebdf;border-bottom:1px solid #e9c8af;color:#82512c;padding:8px 22px;font-size:11px;display:flex;justify-content:space-between;align-items:center}.error button{border:0;background:none;padding:0 6px}
 .exportOnly{position:fixed;left:-20000px;top:0;width:1050px;visibility:hidden;pointer-events:none}
 @media(min-width:1600px){.body{grid-template-columns:265px minmax(0,1fr) 275px}.libraryContent{padding:28px 22px}.inspector{padding:28px 22px}}
-@media(max-width:1100px){.body{grid-template-columns:195px minmax(0,1fr) 210px}.header{padding:10px 14px;gap:8px}.libraryContent{padding:20px 12px}.inspector{padding:20px 12px}.contextBar{padding:0 12px}.workspace{padding:40px}.pageBar{padding:10px 12px}.header select{width:105px}}
+@media(max-width:1100px){.body{grid-template-columns:195px minmax(0,1fr) 210px}.header{padding:10px 14px;gap:8px}.libraryContent{padding:20px 12px}.inspector{padding:20px 12px}.contextBar{padding:0 12px}.workspace{padding:40px}.pageBar{padding:10px 12px}}
 
 /* Bấm vào thẻ không hiện viền focus của trình duyệt quanh cả thẻ (dễ tưởng đang chọn cả thẻ); dùng bàn phím thì viền nét đứt nhẹ. */
 .scene:focus{outline:none}.scene:focus-visible{outline:2px dashed #a17d5266;outline-offset:8px}
@@ -83,7 +82,20 @@
 .checkLabel{display:flex!important;align-items:center;gap:8px;margin-top:14px;font-size:11px!important;cursor:pointer}
 .checkLabel input{accent-color:#17161a;width:16px;height:16px;margin:0}
 .twoButtons button[disabled]{opacity:.4}
-.exportGroup{display:flex;gap:8px;align-items:center}
+.exportGroup{display:flex;gap:8px;align-items:center;position:relative}
+.exportTrigger{display:flex;align-items:center;gap:7px;height:42px;padding:0 11px!important;font-weight:600}
+.exportTrigger svg:last-child{transition:transform .15s}
+.exportBackdrop{position:fixed;inset:0;z-index:40}
+.exportMenu{position:absolute;top:calc(100% + 8px);right:0;z-index:41;width:min(320px,calc(100vw - 20px));padding:8px;border:1px solid #e7e5e8;border-radius:12px;background:#ffffff;box-shadow:0 20px 40px -20px #28284c4d}
+.exportMenu>p{margin:0;padding:8px 12px 4px;font-size:11px;font-weight:600;color:#8a868e}
+.exportMenu button{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;border-color:transparent;padding:10px 12px}
+.exportMenu button[aria-selected=true]{background:#f3ede4}
+.exportIcon{margin-top:2px;color:#17161acc;display:flex}
+.exportText{flex:1;min-width:0}
+.exportText b{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+.exportText em{font-style:normal;font-size:9px;font-weight:600;color:#fff;background:#a17d52;border-radius:999px;padding:2px 8px}
+.exportText small{display:block;font-size:11.5px;line-height:1.35;color:#8a868e}
+.exportCheck{margin-top:4px;color:#a17d52;flex-shrink:0}
 .sheetClose,.mobileBar{display:none!important}
 
 /* ---------- Hộp thoại cắt ảnh (nằm ngoài .editor) ---------- */
@@ -118,7 +130,8 @@
   .documentName input:not([type=file]):not([type=color]){font-size:13px}
   .history{gap:2px}.history button{padding:5px 7px;font-size:19px}
   .exportGroup{gap:4px}
-  .header select{width:64px;font-size:10px;padding:7px 4px}
+  .exportTrigger{height:34px;gap:4px;padding:0 7px!important;font-size:10px}
+  .exportTrigger svg:first-child{display:none}
   .header .primary{padding:8px 10px;font-size:10px}
   .body{display:flex;flex-direction:column;position:relative}
   .center{flex:1}

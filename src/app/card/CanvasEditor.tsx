@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { createPortal } from "react-dom";
 import { LOGO_ICONS } from "@/lib/logo-templates";
 import { downloadDesign, type ExportKind } from "../design/export";
+import { EXPORT_OPTIONS } from "../design/ExportBar";
 import { LogoIcon } from "../logo/LogoSvg";
 import { CanvasSvg } from "./CanvasSvg";
 import { ImageCropper } from "./ImageCropper";
@@ -129,6 +130,9 @@ export function CanvasEditor({ initial, onChange, onClose, config = CARD_EDITOR 
   const [guides, setGuides] = useState<Guides>({ x: [], y: [] });
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [exportKind, setExportKind] = useState<ExportKind>("pdf");
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportOption = EXPORT_OPTIONS.find((o) => o.id === exportKind)!;
+  const pdfDetail = config.pdfLabel.replace(/^PDF( · )?/, "");
   const [qrValue, setQrValue] = useState("https://");
   const [cropping, setCropping] = useState<{ id: string; src: string } | null>(null);
   const [palette] = useState(brandPalette);
@@ -570,6 +574,7 @@ export function CanvasEditor({ initial, onChange, onClose, config = CARD_EDITOR 
         event.preventDefault();
         deleteSelected();
       } else if (event.key === "Escape") {
+        setExportOpen(false);
         finishGesture(true);
         setSelection([]);
         setInline(null);
@@ -939,12 +944,56 @@ export function CanvasEditor({ initial, onChange, onClose, config = CARD_EDITOR 
           <button type="button" aria-label="Làm lại" title="Làm lại (Ctrl+Shift+Z)" disabled={!historyState.future} onClick={() => undo(true)}>↷</button>
         </div>
         <div className={css.exportGroup}>
-          <select aria-label="Định dạng tải xuống" value={exportKind} onChange={(e) => setExportKind(e.target.value as ExportKind)}>
-            <option value="pdf">{config.pdfLabel}</option>
-            <option value="png">PNG</option>
-            <option value="jpg">JPG</option>
-            <option value="svg">SVG</option>
-          </select>
+          <button
+            type="button"
+            className={css.exportTrigger}
+            aria-label="Định dạng tải xuống"
+            aria-haspopup="listbox"
+            aria-expanded={exportOpen}
+            disabled={!!busy}
+            onClick={() => setExportOpen((v) => !v)}
+          >
+            {exportOption.icon()}
+            <span>{exportOption.label}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={exportOpen ? { transform: "rotate(180deg)" } : undefined}>
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+          {exportOpen && (
+            <>
+              <div className={css.exportBackdrop} onClick={() => setExportOpen(false)} />
+              <div role="listbox" aria-label="Loại tệp" className={css.exportMenu}>
+                <p>Loại tệp</p>
+                {EXPORT_OPTIONS.map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    role="option"
+                    aria-selected={o.id === exportKind}
+                    onClick={() => {
+                      setExportKind(o.id);
+                      setExportOpen(false);
+                    }}
+                  >
+                    <span className={css.exportIcon}>{o.icon()}</span>
+                    <span className={css.exportText}>
+                      <b>
+                        {o.label}
+                        {o.id === "pdf" && <em>Đề xuất</em>}
+                      </b>
+                      {/* PDF: thêm chi tiết riêng từng sản phẩm, vd "In 2 mặt" từ pdfLabel "PDF · In 2 mặt" */}
+                      <small>{o.id === "pdf" && pdfDetail ? `${o.desc} · ${pdfDetail}` : o.desc}</small>
+                    </span>
+                    {o.id === exportKind && (
+                      <svg className={css.exportCheck} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m5 12 5 5 9-10" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <button type="button" className={css.primary} disabled={!!busy} onClick={() => void exportFile()}>
             {busy ? "Đang xuất…" : "↓ Tải xuống"}
           </button>

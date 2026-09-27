@@ -23,6 +23,8 @@ import { useCanvasDraft } from "../design/useCanvasDraft";
 
 const STORAGE_KEY = "naile-voucher-design";
 const PER_PAGE = 10;
+// Trang có mẫu mới đầu tiên (nút "Xem mẫu mới").
+const NEW_PAGE = Math.max(0, Math.floor(VOUCHER_TEMPLATES.findIndex((t) => t.isNew) / PER_PAGE));
 
 // Trình thiết kế tự do cho voucher: 2 mặt, xuất cùng khổ DL 300dpi như tải theo mẫu.
 const VOUCHER_EDITOR: EditorConfig = {
@@ -159,7 +161,7 @@ export function VoucherStudio({ editor }: { editor: VoucherEditor }) {
           </div>
         </div>
         <p className="px-1 text-center text-[11px] text-taupe">2 mặt · {VOUCHER_SIZE.label} · mặt trước có dòng Người nhận / Người tặng để viết tay</p>
-        <button type="button" onClick={() => goPage(1)} className="mx-auto block text-xs font-semibold text-gold underline underline-offset-4">Xem 20 mẫu mới ↓</button>
+        <button type="button" onClick={() => goPage(NEW_PAGE)} className="mx-auto block text-xs font-semibold text-gold underline underline-offset-4">Xem {VOUCHER_TEMPLATES.filter((t) => t.isNew).length} mẫu mới ↓</button>
       </div>
 
       <div className="space-y-4">

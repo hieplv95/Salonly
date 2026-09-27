@@ -1,9 +1,10 @@
 import { useId, type ReactNode, type Ref } from "react";
-import { VOUCHER_SIZE, isNewVoucherStyle, type VoucherDesign } from "@/lib/voucher-templates";
+import { VOUCHER_SIZE, isNewVoucherStyle, isTrendVoucherStyle, type VoucherDesign } from "@/lib/voucher-templates";
 import { F, mix, star, useSvgText } from "../design/svg-kit";
 import { LogoIcon } from "../logo/LogoSvg";
 import { Veins, hash } from "../price/PriceSvg";
 import { VoucherFreshSvg } from "./VoucherFreshSvg";
+import { VoucherTrendSvg } from "./VoucherTrendSvg";
 
 const { w: W, h: H } = VOUCHER_SIZE;
 const C = W / 2;
@@ -107,6 +108,7 @@ export function VoucherSvg({ design, svgRef, className }: { design: VoucherDesig
   const { T, key, widthOf } = useSvgText(ink);
   const L: ReactNode[] = [];
   if (isNewVoucherStyle(design.style)) return <VoucherFreshSvg design={design} side="front" svgRef={svgRef} className={className} />;
+  if (isTrendVoucherStyle(design.style)) return <VoucherTrendSvg design={design} side="front" svgRef={svgRef} className={className} />;
 
   const meta = [design.code.trim() && `Mã số: ${design.code.trim()}`, design.expiry.trim() && `Hạn dùng: ${design.expiry.trim()}`].filter(Boolean).join("   ·   ");
   const contact = [design.phone, design.website].map((s) => s.trim()).filter(Boolean).join("   ·   ");

@@ -122,7 +122,7 @@ export function StampStudio({ editor }: { editor: StampEditor }) {
   const typographyPages = Math.ceil(TYPOGRAPHY_STAMP_TEMPLATES.length / pageSize);
   const galleryTitle =
     page <= brandedPages
-      ? "20 mẫu tên tiệm"
+      ? "20 mẫu tên tiệm mới"
       : page <= brandedPages + typographyPages
         ? "20 mẫu chữ mới"
         : "20 mẫu dấu cơ bản";
