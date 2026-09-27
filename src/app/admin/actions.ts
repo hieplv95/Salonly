@@ -19,6 +19,7 @@ import {
   setLocations,
   setRequireLogin,
   setFooter,
+  setSeo,
   setSourceCredit,
   setSourceEnabled,
   setSourceLabel,
@@ -114,6 +115,37 @@ export async function saveFooterAction(fd: FormData) {
     company: v("company"),
     website: v("website", 120),
     founded: /^(19|20)\d{2}$/.test(founded) ? founded : "",
+  });
+  revalidatePath("/", "layout");
+}
+
+/* ---------- SEO & GEO ---------- */
+
+export async function saveSeoAction(fd: FormData) {
+  await requireAdmin();
+  const v = (k: string, max: number) => String(fd.get(k) ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const block = (k: string, max: number) => String(fd.get(k) ?? "").replace(/\r/g, "").trim().slice(0, max);
+  const url = (s: string) => (/^https?:\/\/\S+$/.test(s) ? s.replace(/\/+$/, "") : "");
+  const coord = (s: string, lim: number) => (s && Number.isFinite(Number(s)) && Math.abs(Number(s)) <= lim ? String(Number(s)) : "");
+  const region = v("region", 10).toUpperCase();
+  const ogImage = v("ogImage", 300);
+  setSeo({
+    siteUrl: url(v("siteUrl", 200)),
+    title: v("title", 70) || "Salonly · AI Studio",
+    description: v("description", 200),
+    keywords: v("keywords", 300),
+    ogImage: ogImage.startsWith("/") ? ogImage : url(ogImage),
+    indexing: fd.get("indexing") === "on",
+    googleVerification: v("googleVerification", 100).replace(/[^\w-]/g, ""),
+    bingVerification: v("bingVerification", 100).replace(/[^\w-]/g, ""),
+    allowAiBots: fd.get("allowAiBots") === "on",
+    aiSummary: v("aiSummary", 1000),
+    faq: block("faq", 4000),
+    sameAs: block("sameAs", 1500),
+    region: /^[A-Z]{2}(-[A-Z0-9]{1,3})?$/.test(region) ? region : "",
+    placename: v("placename", 80),
+    latitude: coord(v("latitude", 20), 90),
+    longitude: coord(v("longitude", 20), 180),
   });
   revalidatePath("/", "layout");
 }

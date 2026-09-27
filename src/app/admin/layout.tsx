@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getFooter } from "@/lib/settings";
 import { SiteCredit } from "../SiteCredit";
 import { logout } from "../(auth)/actions";
 import { AdminNav } from "./AdminNav";
+
+// Trang quản trị không bao giờ hiện trên Google.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 // Khung trang quản trị (admin chỉ dùng khu vực này, không vào studio).
 // Mỗi trang con tự kiểm tra quyền admin, vì layout không chạy lại khi chuyển trang.

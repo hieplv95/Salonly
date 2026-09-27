@@ -27,6 +27,57 @@ export function getFooter(): SiteFooter {
 
 export const setFooter = (f: SiteFooter) => setSetting("site_footer", JSON.stringify(f));
 
+/* ---------- SEO & GEO ----------
+ * SEO: tiêu đề, mô tả, từ khoá, ảnh chia sẻ, cho phép Google index, mã xác minh Search Console / Bing.
+ * GEO (tối ưu cho công cụ tìm kiếm AI như ChatGPT, Gemini, Perplexity): cho phép bot AI đọc trang,
+ * đoạn giới thiệu cho AI (/llms.txt), câu hỏi thường gặp và mạng xã hội (dữ liệu có cấu trúc JSON-LD).
+ * Vị trí: khu vực, thành phố, toạ độ (thẻ geo.* cho tìm kiếm theo địa phương). */
+
+export type SiteSeo = {
+  siteUrl: string;
+  title: string;
+  description: string;
+  keywords: string;
+  ogImage: string;
+  indexing: boolean;
+  googleVerification: string;
+  bingVerification: string;
+  allowAiBots: boolean;
+  aiSummary: string;
+  faq: string; // mỗi dòng: Câu hỏi | Trả lời
+  sameAs: string; // mỗi dòng một đường dẫn mạng xã hội
+  region: string; // mã ISO 3166-2, VD: VN-SG
+  placename: string;
+  latitude: string;
+  longitude: string;
+};
+
+export const DEFAULT_SEO: SiteSeo = {
+  siteUrl: "",
+  title: "Salonly · AI Studio",
+  description: "Tải ảnh móng lên để nhận ảnh chỉnh đẹp và video chân thực bằng AI",
+  keywords: "nail, tiệm nail, ảnh móng, video móng, AI, voucher, thiết kế logo tiệm nail",
+  ogImage: "",
+  indexing: true,
+  googleVerification: "",
+  bingVerification: "",
+  allowAiBots: true,
+  aiSummary: "Salonly AI Studio là bộ công cụ AI và thiết kế cho tiệm nail: biến ảnh móng thành ảnh chuẩn studio và video chuyển động để đăng Instagram, TikTok; viết caption; thiết kế logo, bảng giá, thẻ tích điểm, voucher, tờ rơi và con dấu.",
+  faq: "",
+  sameAs: "",
+  region: "",
+  placename: "",
+  latitude: "",
+  longitude: "",
+};
+
+export function getSeo(): SiteSeo {
+  const raw = getSetting("site_seo");
+  return raw ? { ...DEFAULT_SEO, ...(JSON.parse(raw) as Partial<SiteSeo>) } : DEFAULT_SEO;
+}
+
+export const setSeo = (s: SiteSeo) => setSetting("site_seo", JSON.stringify(s));
+
 /* ---------- Bắt buộc đăng nhập ----------
  * Tắt (mặc định): ai mở app cũng dùng được, lượt tạo tính vào tài khoản "Khách vãng lai" dùng chung.
  * Bật: phải có tài khoản và đăng nhập. */

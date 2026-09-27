@@ -359,7 +359,7 @@ export function Studio({ user, quota: initialQuota, footer }: { user: SessionUse
             <CaptionStudio editor={caption} />
           ) : !original ? (
             <div className="mx-auto max-w-xl">
-              <Landing note={note} onNote={changeNote} onPick={onPick} onDrop={handleFile} />
+              <Landing isPhotos={isPhotos} note={note} onNote={changeNote} onPick={onPick} onDrop={handleFile} />
             </div>
           ) : (
             <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-8 lg:space-y-0">
@@ -629,27 +629,34 @@ function Panel({ children }: { children: React.ReactNode }) {
 /* ---------- Màn hình chào ---------- */
 
 function Landing({
+  isPhotos,
   note,
   onNote,
   onPick,
   onDrop,
 }: {
+  isPhotos: boolean;
   note: string;
   onNote: (v: string) => void;
   onPick: () => void;
   onDrop: (f?: File) => void;
 }) {
   const [dragging, setDragging] = useState(false);
+  const kind = isPhotos ? "ảnh" : "video";
   return (
     <div className="fade-up space-y-5">
       <div className="pt-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold">Nail photo & video · AI</p>
         <h1 className="mt-3 font-serif text-[38px] leading-[1.08] tracking-tight">
-          Mỗi bộ móng <br />
-          xứng đáng một <span className="gold-text italic">khung hình</span> đẹp
+          Hãy tạo <span className="gold-text italic">{kind}</span> ngay
+          <span className="mt-2 block text-[22px] leading-snug">
+            để có những {kind} đẹp đăng lên Instagram, TikTok, kéo theo nhiều khách hàng về tiệm của mình
+          </span>
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-taupe">
-          Tải lên một ảnh — nhận ảnh chụp chuẩn studio và video chuyển động như thật để đăng bán.
+          {isPhotos
+            ? "Tạo ảnh chuẩn như studio, hãy mô tả những thay đổi mà bạn cần có ở ảnh."
+            : "Tạo ảnh thành video chuẩn như studio, hãy mô tả các chuyển động mà bạn cần có ở video."}
         </p>
       </div>
 

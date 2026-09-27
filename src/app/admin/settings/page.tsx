@@ -11,6 +11,7 @@ import { SourceCard } from "./SourceCard";
 import { AddSourceForm, TestAllForm } from "./SourceForms";
 import { AccessCard } from "./AccessCard";
 import { FooterCard } from "./FooterCard";
+import { SeoCard } from "./SeoCard";
 
 export const metadata: Metadata = { title: "Cài đặt · Quản trị Salonly" };
 
@@ -119,6 +120,9 @@ export default async function SettingsPage() {
         </form>
       </section>
       <FooterCard />
+      </div>
+      <div className="lg:col-span-2">
+        <SeoCard />
       </div>
     </div>
   );
