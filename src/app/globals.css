@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-sans-vn);
+  --font-serif: var(--font-serif-vn);
+  --color-ivory: #f6f6f5;
+  --color-cream: #ffffff;
+  --color-ink: #17161a;
+  --color-taupe: #77737b;
+  --color-line: #e7e5e8;
+  --color-gold: #a17d52;
+  --color-rosegold: #b7727a;
+  --color-stage: #eeedeb;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: #f6f6f5;
+  color: #17161a;
+  font-family: var(--font-sans-vn), system-ui, sans-serif;
+}
+
+/* Khung app: header, thân và footer nằm trên cùng một nền liền mạch. */
+.app-shell {
+  background:
+    radial-gradient(130% 45% at 50% -8%, #ffffff 0%, transparent 60%),
+    #f6f6f5;
+}
+
+
+.gold-text {
+  background: linear-gradient(100deg, #8a6a44, #c9a97c 45%, #9a774d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gold-btn {
+  background: linear-gradient(135deg, #2c2a31, #17161a);
+  box-shadow: 0 10px 24px -10px rgb(23 22 26 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.12);
+}
+
+.glass {
+  background: rgb(255 255 255 / 0.72);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+}
+
+.shimmer {
+  background: linear-gradient(110deg, #ecebe9 30%, #f8f8f7 50%, #ecebe9 70%);
+  background-size: 250% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -250% 0;
+  }
+}
+
+.fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+/* Viền sáng khi chọn thành phần SVG có sẵn trên thẻ. Không đi vào file xuất. */
+.card-layer-selected {
+  filter: drop-shadow(0 0 5px #a17d52) drop-shadow(0 0 2px #fff);
+}

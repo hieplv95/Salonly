@@ -1,0 +1,1499 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import type { SessionUser } from "@/lib/auth/session";
+import type { QuotaSummary } from "@/lib/usage";
+import type { SiteFooter } from "@/lib/settings";
+import { SiteCredit } from "./SiteCredit";
+import { logout } from "./(auth)/actions";
+import {
+  CUSTOM_MOTION,
+  CUSTOM_STYLE,
+  DEFAULT_MOTIONS,
+  DEFAULT_STYLES,
+  DEFAULT_VIDEO_FORMAT,
+  IMAGE_FORMATS,
+  IMAGE_STYLES,
+  MAX_IMAGES,
+  MAX_VIDEOS,
+  NOTE_MAX,
+  NOTE_SUGGESTIONS,
+  DEFAULT_IMAGE_MODEL,
+  DEFAULT_VIDEO_MODEL,
+  IMAGE_MODEL_OPTIONS,
+  VIDEO_MODEL_OPTIONS,
+  type ModelOption,
+  VIDEO_FORMATS,
+  VIDEO_MOTIONS,
+  VIDEO_NOTE_SUGGESTIONS,
+  type Format,
+  type Preset,
+} from "@/lib/presets";
+import { shareOrDownload } from "@/lib/share";
+import { errMsg, fileToDataUrl, postJson } from "./ai-client";
+import { LogoFooter, LogoStudio, useLogoEditor } from "./logo/LogoStudio";
+import { LOGO_TEMPLATES } from "@/lib/logo-templates";
+import { PriceTabFooter, PriceTabStudio, usePriceTab } from "./menu/PriceTab";
+import { MENU_TEMPLATES } from "@/lib/menu-templates";
+import { PRICE_TEMPLATES } from "@/lib/price-templates";
+import { CardFooter, CardStudio, useCardEditor } from "./card/CardStudio";
+import { CARD_TEMPLATES } from "@/lib/card-templates";
+import { VoucherFooter, VoucherStudio, useVoucherEditor } from "./voucher/VoucherStudio";
+import { FlyerTabFooter, FlyerTabStudio, useFlyerTab } from "./flyer/FlyerTab";
+import { FLYER_TEMPLATES } from "@/lib/flyer-templates";
+import { PROMO_TEMPLATES } from "@/lib/promo-flyer-templates";
+import { StampFooter, StampStudio, useStampEditor } from "./stamp/StampStudio";
+import { STAMP_TEMPLATES } from "@/lib/stamp-templates";
+import { CaptionFooter, CaptionStudio, useCaptionEditor } from "./caption/CaptionStudio";
+
+type Job =
+  | { status: "idle" }
+  | { status: "loading"; startedAt: number }
+  | { status: "done"; url: string }
+  | { status: "error"; error: string };
+
+type Tab = "photos" | "videos" | "caption" | "logo" | "price" | "card" | "voucher" | "flyer" | "stamp";
+type Viewer = { kind: "image" | "video"; url: string; name: string; styleId?: string };
+
+const POLL_MS = 8000;
+
+// user = null: khách chưa đăng nhập (admin đã tắt "Bắt buộc đăng nhập").
+export function Studio({ user, quota: initialQuota, footer }: { user: SessionUser | null; quota: QuotaSummary | null; footer: SiteFooter }) {
+  // Lượt đã dùng / hạn mức tháng này; API trả số mới sau mỗi lần tạo.
+  const [quota, setQuota] = useState(initialQuota);
+  const [original, setOriginal] = useState<string | null>(null);
+  const [images, setImages] = useState<Record<string, Job>>({});
+  const [videos, setVideos] = useState<Record<string, Job>>({});
+  // Thứ tự các ảnh / video đã bấm tạo (chỉ hiện những cái này).
+  const [imageOrder, setImageOrder] = useState<string[]>([]);
+  const [videoOrder, setVideoOrder] = useState<string[]>([]);
+  const [pickedStyles, setPickedStyles] = useState<string[]>(DEFAULT_STYLES);
+  const [imageCount, setImageCount] = useState(1);
+  const [pickedMotions, setPickedMotions] = useState<string[]>(DEFAULT_MOTIONS);
+  // Mô tả riêng cho video (khác mô tả chỉnh ảnh).
+  const [videoNote, setVideoNote] = useState("");
+  const [videoCount, setVideoCount] = useState(1);
+  // Kích thước đăng (tỉ lệ khung) cho ảnh và video.
+  const [imageFormat, setImageFormat] = useState(IMAGE_FORMATS[0].id);
+  const [videoFormat, setVideoFormat] = useState(DEFAULT_VIDEO_FORMAT);
+  const [appliedFormat, setAppliedFormat] = useState(IMAGE_FORMATS[0].id);
+  const [videoFormats, setVideoFormats] = useState<Record<string, string>>({});
+  // Model AI người dùng chọn (ảnh / video) và model đã dùng cho từng kết quả (để "Thử lại" đúng model).
+  const [imageModel, setImageModel] = useState(DEFAULT_IMAGE_MODEL);
+  const [videoModel, setVideoModel] = useState(DEFAULT_VIDEO_MODEL);
+  const [appliedImageModel, setAppliedImageModel] = useState(DEFAULT_IMAGE_MODEL);
+  // Model thực tế đã tạo từng ảnh (khác model đã chọn khi model đó đang bận).
+  const [usedModels, setUsedModels] = useState<Record<string, string>>({});
+  const [videoModels, setVideoModels] = useState<Record<string, string>>({});
+  const [source, setSource] = useState<string>("original");
+  const [tab, setTab] = useState<Tab>("photos");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [viewer, setViewer] = useState<Viewer | null>(null);
+  const [demo, setDemo] = useState(false);
+  const [now, setNow] = useState(0);
+  // note: đang gõ; appliedNote: mô tả đã dùng cho bộ ảnh hiện tại.
+  const [note, setNote] = useState("");
+  const [appliedNote, setAppliedNote] = useState("");
+  const pickRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  // session: đổi khi tải ảnh mới (huỷ mọi việc cũ); imageRun: đổi khi bấm tạo ảnh lần nữa.
+  const session = useRef(0);
+  const imageRun = useRef(0);
+  const mainRef = useRef<HTMLElement>(null);
+  const logo = useLogoEditor();
+  const price = usePriceTab();
+  const card = useCardEditor();
+  const voucher = useVoucherEditor();
+  const flyer = useFlyerTab();
+  const stamp = useStampEditor();
+  const caption = useCaptionEditor();
+
+  // Cập nhật đồng hồ đếm thời gian cho các video đang tạo.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const styleOptions: Preset[] = note.trim() ? [CUSTOM_STYLE, ...IMAGE_STYLES] : IMAGE_STYLES;
+  const styleSel = pickedStyles.filter((id) => styleOptions.some((s) => s.id === id)).slice(0, imageCount);
+  const plannedJobs = planJobs(styleSel, imageCount, note.trim());
+  const motionOptions: Preset[] = videoNote.trim() ? [CUSTOM_MOTION, ...VIDEO_MOTIONS] : VIDEO_MOTIONS;
+  const motionSel = pickedMotions.filter((id) => motionOptions.some((m) => m.id === id)).slice(0, videoCount);
+  const plannedVideos = planJobs(motionSel, videoCount, videoNote.trim(), VIDEO_MOTIONS);
+  const doneImages = imageOrder.flatMap((id) => {
+    const job = images[id];
+    return job?.status === "done" ? [{ ...jobPreset(id), url: job.url }] : [];
+  });
+  const sourceUrl = doneImages.find((s) => s.id === source)?.url ?? original!;
+  const imagesBusy = imageOrder.some((id) => images[id]?.status === "loading");
+  const videosDone = Object.values(videos).filter((j) => j.status === "done").length;
+  const videoBusy = Object.values(videos).some((j) => j.status === "loading");
+
+  async function runEnhance(
+    image: string,
+    styleId: string,
+    run: number,
+    withNote: string,
+    formatId: string,
+    model: string,
+  ) {
+    setImages((s) => ({ ...s, [styleId]: { status: "loading", startedAt: Date.now() } }));
+    try {
+      const data = await postJson("/api/enhance", {
+        image,
+        styleId: styleOf(styleId),
+        note: withNote,
+        ratio: formatOf(formatId, IMAGE_FORMATS).ratio,
+        model,
+      });
+      if (data.quota && user) setQuota(data.quota);
+      if (run !== imageRun.current) return;
+      setDemo(data.demo);
+      setImages((s) => ({ ...s, [styleId]: { status: "done", url: data.image } }));
+      setUsedModels((u) => ({ ...u, [styleId]: data.model }));
+    } catch (e) {
+      if (run !== imageRun.current) return;
+      setImages((s) => ({ ...s, [styleId]: { status: "error", error: errMsg(e) } }));
+    }
+  }
+
+  async function runVideo(jobId: string, formatId: string, model: string) {
+    const sid = session.current;
+    setVideoFormats((f) => ({ ...f, [jobId]: formatId }));
+    setVideoModels((m) => ({ ...m, [jobId]: model }));
+    const set = (job: Job) => sid === session.current && setVideos((s) => ({ ...s, [jobId]: job }));
+    set({ status: "loading", startedAt: Date.now() });
+    try {
+      const { op, quota: q } = await postJson("/api/video", {
+        image: sourceUrl,
+        motionId: styleOf(jobId),
+        note: videoNote.trim(),
+        ratio: formatOf(formatId, VIDEO_FORMATS).ratio,
+        crop: formatOf(formatId, VIDEO_FORMATS).crop,
+        model,
+      });
+      if (q && user) setQuota(q);
+      while (sid === session.current) {
+        await new Promise((r) => setTimeout(r, POLL_MS));
+        const res = await fetch(`/api/video?op=${encodeURIComponent(op)}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        if (data.done) {
+          const crop = formatOf(formatId, VIDEO_FORMATS).crop;
+          return set({ status: "done", url: crop ? `${data.url}&crop=${encodeURIComponent(crop)}` : data.url });
+        }
+      }
+    } catch (e) {
+      set({ status: "error", error: errMsg(e) });
+    }
+  }
+
+  async function handleFile(file?: File) {
+    if (!file || !file.type.startsWith("image/")) return;
+    session.current++;
+    imageRun.current++;
+    const url = await fileToDataUrl(file);
+    setOriginal(url);
+    setImages({});
+    setVideos({});
+    setImageOrder([]);
+    setVideoOrder([]);
+    setSource("original");
+    setTab("photos");
+    mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Gõ mô tả lần đầu → tự chọn "Theo yêu cầu" để mô tả được dùng ngay.
+  function changeNote(v: string) {
+    if (!note.trim() && v.trim()) {
+      setPickedStyles((p) => [CUSTOM_STYLE.id, ...p.filter((x) => x !== CUSTOM_STYLE.id)]);
+    }
+    setNote(v);
+  }
+
+  function changeCount(c: number) {
+    setImageCount(c);
+    setPickedStyles((p) => p.slice(0, c));
+  }
+
+  // Bấm "Tạo ảnh": tạo đúng imageCount ảnh theo kế hoạch plannedJobs.
+  function generateImages() {
+    if (!original || !plannedJobs.length) return;
+    const run = ++imageRun.current;
+    const n = note.trim();
+    const f = imageFormat;
+    setAppliedNote(n);
+    setAppliedFormat(f);
+    const m = imageModel;
+    setAppliedImageModel(m);
+    setImageOrder(plannedJobs);
+    setImages({});
+    setSource("original");
+    // Gửi lần lượt từng ảnh một cách nhau một chút để không vượt hạn mức theo phút.
+    plannedJobs.forEach((id, i) =>
+      setTimeout(() => run === imageRun.current && runEnhance(original, id, run, n, f, m), i * 1500),
+    );
+  }
+
+  // Gõ mô tả video lần đầu → tự chọn "Theo mô tả".
+  function changeVideoNote(v: string) {
+    if (!videoNote.trim() && v.trim()) {
+      setPickedMotions([CUSTOM_MOTION.id]);
+    }
+    setVideoNote(v);
+  }
+
+  // Bấm "Tạo video": các video bắt đầu cách nhau vài giây vì mỗi video cần 1 lần xử lý ảnh trước.
+  function changeVideoCount(c: number) {
+    setVideoCount(c);
+    setPickedMotions((p) => p.slice(0, c));
+  }
+
+  function generateVideos() {
+    const list = plannedVideos.filter((id) => videos[id]?.status !== "loading");
+    if (!list.length) return;
+    setVideoOrder((o) => [...list, ...o.filter((id) => !list.includes(id))]);
+    list.forEach((id, i) => setTimeout(() => runVideo(id, videoFormat, videoModel), i * 4000));
+  }
+
+  const pickers = (
+    <>
+      <input ref={pickRef} type="file" accept="image/*" hidden onChange={(e) => handleFile(e.target.files?.[0])} />
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={(e) => handleFile(e.target.files?.[0])}
+      />
+    </>
+  );
+
+  const onPick = () => pickRef.current?.click();
+  const selectTab = (t: Tab) => {
+    setTab(t);
+    setMenuOpen(false);
+    mainRef.current?.scrollTo({ top: 0 });
+  };
+  const onCamera = () => cameraRef.current?.click();
+  const isPhotos = tab === "photos";
+  const isLogo = tab === "logo";
+  const isPrice = tab === "price";
+  const isCard = tab === "card";
+  const isVoucher = tab === "voucher";
+  const isFlyer = tab === "flyer";
+  const isStamp = tab === "stamp";
+  const isCaption = tab === "caption";
+  // Các công cụ riêng (thiết kế, caption) không dùng ảnh móng chung hay thanh tab Ảnh | Video.
+  const isDesign = isLogo || isPrice || isCard || isVoucher || isFlyer || isStamp || isCaption;
+  // Mở tab Viết caption với 1 ảnh có sẵn (ảnh AI vừa tạo).
+  const captionFor = (image: string) => {
+    caption.setImage(image);
+    selectTab("caption");
+  };
+  const plan = isPhotos
+    ? plannedJobs.map((id) => jobPreset(id).label)
+    : plannedVideos.map((id) => motionPreset(id).label);
+  const planFormat = isPhotos ? formatOf(imageFormat, IMAGE_FORMATS) : formatOf(videoFormat, VIDEO_FORMATS);
+  const planModel = isPhotos ? modelOf(imageModel, IMAGE_MODEL_OPTIONS) : modelOf(videoModel, VIDEO_MODEL_OPTIONS);
+  const preview = isPhotos ? original : sourceUrl;
+  return (
+    <div className="app-bg">
+      {pickers}
+
+      {/* Khung app: header – body – footer dùng chung một nền, một bề rộng */}
+      {/* Điện thoại: khung một cột. Máy tính: menu cố định bên trái + nội dung toàn màn hình. */}
+      <div className="app-shell relative flex h-dvh w-full overflow-hidden">
+        <DesktopNav tab={tab} user={user} quota={quota} footer={footer} busy={{ photos: imagesBusy, videos: videoBusy }} onSelect={selectTab} />
+        <div className="relative flex min-w-0 flex-1 flex-col">
+        {/* Header */}
+        <header className="z-20 flex shrink-0 items-center justify-between border-b border-line/70 bg-ivory/80 px-5 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))] backdrop-blur-xl lg:px-10 lg:py-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMenuOpen(true)}
+              aria-label="Mở menu"
+              aria-expanded={menuOpen}
+              className="grid h-9 w-9 place-items-center rounded-full border border-line bg-cream active:scale-95 lg:hidden"
+            >
+              <IconMenu />
+            </button>
+            <div className="flex items-baseline gap-2 lg:hidden">
+              <span className="font-serif text-[26px] italic leading-none tracking-tight">Salonly</span>
+              <span className="rounded-full border border-gold/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.22em] text-gold">
+                AI Studio
+              </span>
+            </div>
+            <h1 className="hidden font-serif text-[26px] leading-none lg:block">{MENU_TOOLS.find((m) => m.tab === tab)?.title}</h1>
+          </div>
+          {original && !isDesign ? (
+            <button
+              onClick={onPick}
+              className="flex items-center gap-1.5 rounded-full border border-line bg-cream px-3 py-1.5 text-xs font-medium active:scale-95"
+            >
+              <IconSwap /> Đổi ảnh
+            </button>
+          ) : (
+            <span className="text-[11px] text-taupe lg:hidden">{isLogo ? "Thiết kế logo" : isPrice ? "Bảng giá dịch vụ" : isCard ? "Thẻ tích điểm" : isVoucher ? "Voucher quà tặng" : isFlyer ? "Tờ rơi quảng cáo" : isStamp ? "Con dấu tích điểm" : isCaption ? "Viết caption" : "Ảnh & video"}</span>
+          )}
+        </header>
+
+        {/* Body */}
+        <main ref={mainRef} className="no-scrollbar flex-1 overflow-y-auto overscroll-contain px-5 pb-6 pt-5 lg:px-10 lg:py-8">
+          <div className="mx-auto w-full max-w-2xl lg:max-w-6xl">
+          {isLogo ? (
+            <LogoStudio editor={logo} />
+          ) : isPrice ? (
+            <PriceTabStudio tab={price} />
+          ) : isCard ? (
+            <CardStudio editor={card} />
+          ) : isVoucher ? (
+            <VoucherStudio editor={voucher} />
+          ) : isFlyer ? (
+            <FlyerTabStudio tab={flyer} />
+          ) : isStamp ? (
+            <StampStudio editor={stamp} />
+          ) : isCaption ? (
+            <CaptionStudio editor={caption} />
+          ) : !original ? (
+            <div className="mx-auto max-w-xl">
+              <Landing note={note} onNote={changeNote} onPick={onPick} onDrop={handleFile} />
+            </div>
+          ) : (
+            <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-8 lg:space-y-0">
+              <div className="space-y-4 lg:sticky lg:top-0">
+              {demo && (
+                <p className="rounded-2xl bg-gold/10 px-4 py-2.5 text-xs leading-relaxed text-ink/80">
+                  <b>Chế độ demo</b> · cấu hình Google AI để tạo ảnh & video thật.
+                </p>
+              )}
+
+              {/* Ảnh xem trước: tab Ảnh = ảnh gốc, tab Video = ảnh nguồn video */}
+              <div className="fade-up relative overflow-hidden rounded-3xl shadow-[0_18px_36px_-24px_rgb(23_22_26/0.55)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={preview!} alt="Ảnh xem trước" className="aspect-[16/11] w-full object-cover" />
+                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-black/60 to-transparent p-4 pt-14 text-white">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/70">
+                      {isPhotos ? "Ảnh gốc" : "Ảnh nguồn video"}
+                    </p>
+                    <p className="font-serif text-xl leading-tight">
+                      {isPhotos ? "Bộ sưu tập của bạn" : doneImages.find((s) => s.id === source)?.label ?? "Ảnh gốc"}
+                    </p>
+                  </div>
+                  {isPhotos && imageOrder.length > 0 && <Progress done={doneImages.length} total={imageOrder.length} />}
+                </div>
+              </div>
+              </div>
+
+              {isPhotos ? (
+                <section className="fade-up space-y-4" key="photos">
+                  <Panel>
+                    <NoteInput value={note} onChange={changeNote} />
+                    <CountPicker value={imageCount} max={MAX_IMAGES} unit="ảnh" onChange={changeCount} />
+                    <ModelPicker options={IMAGE_MODEL_OPTIONS} value={imageModel} onChange={setImageModel} />
+                    <ChoicePicker
+                      title="Chọn phong cách"
+                      optional
+                      max={imageCount}
+                      options={styleOptions}
+                      value={styleSel}
+                      onChange={setPickedStyles}
+                    />
+                    <FormatPicker options={IMAGE_FORMATS} value={imageFormat} onChange={setImageFormat} />
+                  </Panel>
+
+                  {imageOrder.length > 0 && (
+                    <div>
+                      <SectionHead
+                        eyebrow="Kết quả"
+                        title="Ảnh đã chỉnh"
+                        note={appliedNote ? `Theo mô tả: “${appliedNote}”` : "Giữ nguyên mẫu móng · đổi ánh sáng, bối cảnh"}
+                      />
+                      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                        {imageOrder.map((id, i) => {
+                          const s = jobPreset(id);
+                          return (
+                            <Tile
+                              key={id}
+                              index={i}
+                              aspect={formatOf(appliedFormat, IMAGE_FORMATS).css}
+                              label={s.label}
+                              hint={
+                                usedModels[id] && usedModels[id] !== appliedImageModel && IMAGE_MODEL_OPTIONS.some((o) => o.id === usedModels[id])
+                                  ? `Đã dùng ${modelOf(usedModels[id], IMAGE_MODEL_OPTIONS).label} vì model đã chọn đang bận`
+                                  : s.hint
+                              }
+                              badge={source === id ? "Nguồn video" : undefined}
+                              job={images[id] ?? { status: "loading", startedAt: now }}
+                              onOpen={(url) => setViewer({ kind: "image", url, name: `naile-${id}.png`, styleId: id })}
+                              onRetry={() => runEnhance(original, id, imageRun.current, appliedNote, appliedFormat, appliedImageModel)}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              ) : (
+                <section className="fade-up space-y-4" key="videos">
+                  <Panel>
+                    <p className="px-1 text-xs font-semibold">Ảnh nguồn</p>
+                    <div className="no-scrollbar -mx-4 mt-2 flex gap-3 overflow-x-auto px-4 pb-1">
+                      {[{ id: "original", label: "Ảnh gốc", url: original }, ...doneImages].map((s) => (
+                        <button key={s.id} onClick={() => setSource(s.id)} className="shrink-0 text-center active:scale-95">
+                          <span
+                            className={`block overflow-hidden rounded-2xl p-0.5 transition ${
+                              source === s.id ? "bg-gradient-to-br from-gold to-rosegold" : "bg-transparent"
+                            }`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={s.url} alt="" className="h-14 w-14 rounded-[14px] border-2 border-cream object-cover" />
+                          </span>
+                          <span className={`mt-1 block w-[60px] truncate text-[11px] ${source === s.id ? "font-semibold" : "text-taupe"}`}>
+                            {s.label}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-4">
+                      <NoteInput
+                        id="video-note"
+                        label="Mô tả video bạn muốn"
+                        placeholder="VD: tay cầm ly trà sữa, cánh hoa rơi nhẹ…"
+                        suggestions={VIDEO_NOTE_SUGGESTIONS}
+                        value={videoNote}
+                        onChange={changeVideoNote}
+                      />
+                    </div>
+                    <CountPicker value={videoCount} max={MAX_VIDEOS} unit="video" onChange={changeVideoCount} />
+                    <ModelPicker options={VIDEO_MODEL_OPTIONS} value={videoModel} onChange={setVideoModel} />
+                    <ChoicePicker
+                      title="Chọn kiểu chuyển động"
+                      optional
+                      max={videoCount}
+                      options={motionOptions}
+                      value={motionSel}
+                      onChange={setPickedMotions}
+                    />
+                    <FormatPicker options={VIDEO_FORMATS} value={videoFormat} onChange={setVideoFormat} />
+                  </Panel>
+
+                  {videoOrder.length > 0 && (
+                    <div>
+                      <SectionHead eyebrow="Kết quả" title="Video đã tạo" note="Chạm để xem toàn màn hình, lưu hoặc chia sẻ" />
+                      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                        {videoOrder.map((id, i) => {
+                          const m = motionPreset(id);
+                          return (
+                            <Tile
+                              key={id}
+                              index={i}
+                              kind="video"
+                              aspect={formatOf(videoFormats[id] ?? DEFAULT_VIDEO_FORMAT, VIDEO_FORMATS).css}
+                              label={m.label}
+                              hint={m.hint}
+                              job={videos[id] ?? { status: "loading", startedAt: now }}
+                              now={now}
+                              onOpen={(url) => setViewer({ kind: "video", url, name: `naile-${id}.mp4` })}
+                              onRetry={() => runVideo(id, videoFormats[id] ?? DEFAULT_VIDEO_FORMAT, videoModels[id] ?? DEFAULT_VIDEO_MODEL)}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+            </div>
+          )}
+          </div>
+        </main>
+
+        {/* Footer: nút hành động chính + thanh tab */}
+        <footer className="z-20 shrink-0 border-t border-line/70 bg-ivory/85 px-4 pb-safe pt-3 backdrop-blur-xl lg:px-10">
+          <div className="mx-auto w-full max-w-2xl lg:max-w-6xl">
+          {isLogo ? (
+            <LogoFooter editor={logo} />
+          ) : isPrice ? (
+            <PriceTabFooter tab={price} />
+          ) : isCard ? (
+            <CardFooter editor={card} />
+          ) : isVoucher ? (
+            <VoucherFooter editor={voucher} />
+          ) : isFlyer ? (
+            <FlyerTabFooter tab={flyer} />
+          ) : isStamp ? (
+            <StampFooter editor={stamp} />
+          ) : isCaption ? (
+            <CaptionFooter editor={caption} />
+          ) : !original ? (
+            <div className="grid grid-cols-[auto_1fr] gap-2.5">
+              <button
+                onClick={onCamera}
+                aria-label="Chụp ảnh mới"
+                className="grid h-[52px] w-[52px] place-items-center rounded-full border border-line bg-cream active:scale-95"
+              >
+                <IconCamera />
+              </button>
+              <button
+                onClick={onPick}
+                className="gold-btn flex h-[52px] items-center justify-center gap-2 rounded-full text-sm font-medium text-cream active:scale-[0.98]"
+              >
+                <IconPhoto /> Chọn ảnh móng để bắt đầu
+              </button>
+            </div>
+          ) : (
+            <div className="lg:flex lg:items-center lg:gap-6">
+              <p className="truncate px-1 text-[11px] text-taupe lg:min-w-0 lg:flex-1 lg:text-[12px]">
+                Sẽ tạo · {planModel.label}{isPhotos ? "" : " · 8 giây"} · {planFormat.ratio ? `${planFormat.label} ${planFormat.crop ?? planFormat.ratio}` : "khung gốc"}:{" "}
+                <b className="font-semibold text-ink">{plan.join(" · ")}</b>
+              </p>
+              <div className="lg:w-[440px] lg:shrink-0 lg:[&>button]:mt-0">
+              <ActionButton
+                onClick={isPhotos ? generateImages : generateVideos}
+                disabled={isPhotos ? !plannedJobs.length || imagesBusy : !plannedVideos.length}
+                busy={isPhotos ? imagesBusy : videoBusy}
+                label={
+                  isPhotos
+                    ? `${imageOrder.length ? "Tạo lại" : "Tạo"} ${plannedJobs.length} ảnh`
+                    : `Tạo ${plannedVideos.length} video`
+                }
+                price={(isPhotos ? plannedJobs.length : plannedVideos.length) * planModel.vnd}
+              />
+              </div>
+            </div>
+          )}
+          {!isDesign && (
+          <nav className="mt-2.5 flex gap-1 rounded-full bg-line/50 p-1 lg:hidden">
+            <TabButton
+              active={isPhotos}
+              onClick={() => setTab("photos")}
+              icon={<IconPhoto />}
+              label="Ảnh"
+              count={doneImages.length}
+              pulse={imagesBusy}
+            />
+            <TabButton
+              active={tab === "videos"}
+              onClick={() => setTab("videos")}
+              icon={<IconFilm />}
+              label="Video"
+              count={videosDone}
+              pulse={videoBusy}
+            />
+          </nav>
+          )}
+          </div>
+        </footer>
+        </div>
+
+        <SideMenu
+          open={menuOpen}
+          tab={tab}
+          user={user}
+          quota={quota}
+          footer={footer}
+          busy={{ photos: imagesBusy, videos: videoBusy }}
+          onClose={() => setMenuOpen(false)}
+          onSelect={selectTab}
+        />
+      </div>
+
+      {viewer && (
+        <Lightbox
+          viewer={viewer}
+          isSource={viewer.styleId === source}
+          onClose={() => setViewer(null)}
+          onUseForVideo={() => {
+            setSource(viewer.styleId!);
+            setViewer(null);
+            setTab("videos");
+          }}
+          onCaption={() => {
+            setViewer(null);
+            captionFor(viewer.url);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Thẻ nội dung dùng chung trong phần thân.
+function Panel({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-3xl border border-line bg-cream p-4 shadow-[0_1px_0_rgb(255_255_255/0.8)_inset]">{children}</div>;
+}
+
+/* ---------- Màn hình chào ---------- */
+
+function Landing({
+  note,
+  onNote,
+  onPick,
+  onDrop,
+}: {
+  note: string;
+  onNote: (v: string) => void;
+  onPick: () => void;
+  onDrop: (f?: File) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  return (
+    <div className="fade-up space-y-5">
+      <div className="pt-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold">Nail photo & video · AI</p>
+        <h1 className="mt-3 font-serif text-[38px] leading-[1.08] tracking-tight">
+          Mỗi bộ móng <br />
+          xứng đáng một <span className="gold-text italic">khung hình</span> đẹp
+        </h1>
+        <p className="mt-3 text-[15px] leading-relaxed text-taupe">
+          Tải lên một ảnh — nhận ảnh chụp chuẩn studio và video chuyển động như thật để đăng bán.
+        </p>
+      </div>
+
+      {/* Vùng thả ảnh (bấm cũng mở thư viện) */}
+      <button
+        type="button"
+        onClick={onPick}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          onDrop(e.dataTransfer.files[0]);
+        }}
+        className={`drop-zone flex w-full items-center gap-4 rounded-3xl border-2 border-dashed p-4 text-left transition active:scale-[0.99] ${
+          dragging ? "border-gold bg-gold/10" : "border-line bg-cream"
+        }`}
+      >
+        <span className="relative grid h-16 w-16 shrink-0 place-items-center">
+          <span className="absolute inset-0 rotate-6 rounded-[20px] bg-gradient-to-br from-[#f1ece4] to-[#e4d9c9]" />
+          <span className="absolute inset-0 -rotate-6 rounded-[20px] border border-gold/30 bg-cream/80" />
+          <IconSparkle className="relative h-7 w-7 text-gold" />
+        </span>
+        <span>
+          <span className="block font-serif text-lg leading-tight">Bắt đầu với một ảnh</span>
+          <span className="mt-1 block text-xs text-taupe">Chạm hoặc kéo thả · ảnh rõ nét, thấy đủ các móng</span>
+        </span>
+      </button>
+
+      <Panel>
+        <NoteInput value={note} onChange={onNote} />
+      </Panel>
+
+      <ul className="grid grid-cols-3 gap-2 text-center">
+        {[
+          ["4", "phong cách ảnh"],
+          ["4", "kiểu video"],
+          ["100%", "giữ mẫu móng"],
+        ].map(([n, t]) => (
+          <li key={t} className="rounded-2xl border border-line bg-cream px-2 py-3">
+            <p className="font-serif text-2xl">{n}</p>
+            <p className="text-[11px] text-taupe">{t}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const vnd = (n: number) => `${n.toLocaleString("vi-VN")}đ`;
+
+const formatOf = (id: string, list: Format[]) => list.find((f) => f.id === id) ?? list[0];
+const modelOf = (id: string, list: ModelOption[]) => list.find((m) => m.id === id) ?? list[0];
+
+// Chọn model AI (không hiện giá cho khách).
+function ModelPicker({
+  options,
+  value,
+  onChange,
+}: {
+  options: ModelOption[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div className="mt-4">
+      <div className="flex items-baseline justify-between px-1">
+        <span className="text-xs font-semibold">Model AI</span>
+      </div>
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {options.map((o) => {
+          const on = o.id === value;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => onChange(o.id)}
+              aria-pressed={on}
+              className={`flex flex-col rounded-2xl border px-2.5 py-2.5 text-left transition active:scale-[0.98] ${
+                on ? "border-gold bg-gold/10 shadow-[inset_0_0_0_1px_var(--color-gold)]" : "border-line bg-white/70"
+              }`}
+            >
+              <span className="text-[13px] font-semibold leading-tight">{o.label}</span>
+              <span className="mt-0.5 text-[10.5px] leading-snug text-taupe">{o.hint}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Chọn kích thước đăng; mỗi lựa chọn có hình chữ nhật minh hoạ đúng tỉ lệ.
+function FormatPicker({ options, value, onChange }: { options: Format[]; value: string; onChange: (id: string) => void }) {
+  return (
+    <div className="mt-4">
+      <div className="flex items-baseline justify-between px-1">
+        <span className="text-xs font-semibold">Kích thước đăng</span>
+        <span className="text-[10px] text-taupe">Theo tỉ lệ chuẩn từng nền tảng</span>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {options.map((f) => {
+          const on = f.id === value;
+          const [w, h] = (f.crop ?? f.ratio ?? "4:5").split(":").map(Number);
+          return (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => onChange(f.id)}
+              aria-pressed={on}
+              className={`flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition active:scale-[0.98] ${
+                on ? "border-gold bg-gold/10 shadow-[inset_0_0_0_1px_var(--color-gold)]" : "border-line bg-white/70"
+              }`}
+            >
+              <span className="grid h-8 w-8 shrink-0 place-items-center">
+                <span
+                  className={`block rounded-[3px] border-[1.5px] ${on ? "border-gold bg-gold/20" : "border-taupe/60"} ${
+                    f.ratio ? "" : "border-dashed"
+                  }`}
+                  style={w >= h ? { width: 28, height: (28 * h) / w } : { height: 28, width: (28 * w) / h }}
+                />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[13px] font-semibold leading-tight">{f.label}</span>
+                <span className="mt-0.5 block text-[11px] text-taupe">{f.hint}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Mỗi ảnh / video là một "job"; cùng kiểu tạo 2 lần thì job thứ hai có đuôi "~2".
+const ALL_STYLES = [CUSTOM_STYLE, ...IMAGE_STYLES];
+const ALL_MOTIONS = [CUSTOM_MOTION, ...VIDEO_MOTIONS];
+const styleOf = (jobId: string) => jobId.split("~")[0];
+function presetOf(jobId: string, all: Preset[]): Preset {
+  const s = all.find((x) => x.id === styleOf(jobId))!;
+  const k = jobId.split("~")[1];
+  return k ? { ...s, label: `${s.label} (${k})` } : s;
+}
+const jobPreset = (jobId: string) => presetOf(jobId, ALL_STYLES);
+const motionPreset = (jobId: string) => presetOf(jobId, ALL_MOTIONS);
+
+// Lấp đủ `count` job: ưu tiên kiểu đã chọn; còn thiếu thì có mô tả → thêm phiên bản
+// "theo mô tả", không có mô tả → thêm kiểu có sẵn chưa chọn.
+function planJobs(picked: string[], count: number, note: string, presets: Preset[] = IMAGE_STYLES): string[] {
+  const ids = picked.slice(0, count);
+  const fallback = presets.map((s) => s.id).filter((id) => !ids.includes(id));
+  while (ids.length < count) ids.push(note ? CUSTOM_STYLE.id : fallback.shift()!);
+  const seen: Record<string, number> = {};
+  return ids.map((id) => {
+    seen[id] = (seen[id] ?? 0) + 1;
+    return seen[id] > 1 ? `${id}~${seen[id]}` : id;
+  });
+}
+
+function CountPicker({
+  value,
+  max,
+  unit,
+  onChange,
+}: {
+  value: number;
+  max: number;
+  unit: string;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <div className="mt-4 flex items-center justify-between gap-3 px-1">
+      <span className="text-xs font-semibold">Số {unit} tạo</span>
+      <div className="flex rounded-full border border-line bg-white/70 p-1">
+        {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            aria-pressed={value === n}
+            className={`min-w-16 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-95 ${
+              value === n ? "gold-btn text-cream" : "text-taupe"
+            }`}
+          >
+            {n} {unit}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Chọn tối đa `max` mục; chọn thêm khi đã đủ thì bỏ mục chọn sớm nhất.
+function ChoicePicker({
+  title,
+  optional,
+  max,
+  options,
+  value,
+  onChange,
+}: {
+  title: string;
+  optional?: boolean;
+  max: number;
+  options: Preset[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const toggle = (id: string) =>
+    onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id].slice(-max));
+  return (
+    <div className="mt-4">
+      <div className="flex items-baseline justify-between px-1">
+        <span className="text-xs font-semibold">{title}</span>
+        <span className="text-[10px] text-taupe">
+          {optional && "Không bắt buộc · "}Đã chọn {value.length}/{max}
+        </span>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {options.map((o) => {
+          const on = value.includes(o.id);
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => toggle(o.id)}
+              aria-pressed={on}
+              className={`relative rounded-2xl border px-3 py-2.5 text-left transition active:scale-[0.98] ${
+                on ? "border-gold bg-gold/10 shadow-[inset_0_0_0_1px_var(--color-gold)]" : "border-line bg-white/70"
+              }`}
+            >
+              <span className="block pr-5 text-[13px] font-semibold leading-tight">{o.label}</span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-taupe">{o.hint}</span>
+              <span
+                className={`absolute right-2.5 top-2.5 grid h-4 w-4 place-items-center rounded-full border text-[10px] ${
+                  on ? "border-gold bg-gold text-cream" : "border-line"
+                }`}
+              >
+                {on && "✓"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ActionButton({
+  onClick,
+  disabled,
+  busy,
+  label,
+  price,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  busy: boolean;
+  label: string;
+  price: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="gold-btn mt-2 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-medium text-cream transition active:scale-[0.98] disabled:opacity-40"
+    >
+      {busy ? (
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-cream/40 border-t-cream" />
+      ) : (
+        <IconSparkle className="h-4 w-4" />
+      )}
+      {label}
+      {price > 0 && <span className="rounded-full bg-cream/15 px-2 py-0.5 text-[11px] font-normal">≈ {vnd(price)}</span>}
+    </button>
+  );
+}
+
+/* ---------- Thành phần ---------- */
+
+function NoteInput({
+  value,
+  onChange,
+  id = "note",
+  label = "Mô tả thay đổi bạn muốn",
+  placeholder = "VD: đổi nền xanh mint, thêm hoa cúc trắng, móng màu đỏ rượu…",
+  suggestions = NOTE_SUGGESTIONS,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  id?: string;
+  label?: string;
+  placeholder?: string;
+  suggestions?: string[];
+}) {
+  const add = (s: string) => {
+    const cur = value.trim();
+    if (cur.toLowerCase().includes(s.toLowerCase())) return;
+    onChange((cur ? `${cur}, ${s.charAt(0).toLowerCase()}${s.slice(1)}` : s).slice(0, NOTE_MAX));
+  };
+  return (
+    <div>
+      <label htmlFor={id} className="flex items-baseline justify-between px-1">
+        <span className="text-xs font-semibold">{label}</span>
+        <span className="text-[10px] text-taupe">Không bắt buộc</span>
+      </label>
+      <div className="relative mt-2">
+        <textarea
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value.slice(0, NOTE_MAX))}
+          rows={2}
+          placeholder={placeholder}
+          className="block w-full resize-none rounded-2xl border border-line bg-white/80 px-4 py-3 pr-9 text-[15px] leading-snug outline-none placeholder:text-taupe/70 focus:border-gold focus:ring-2 focus:ring-gold/20"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            aria-label="Xoá mô tả"
+            className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full text-taupe active:scale-90"
+          >
+            <IconClose />
+          </button>
+        )}
+      </div>
+      {/* Gợi ý tự xuống dòng để luôn thấy đủ, không bị cắt ở mép. */}
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {suggestions.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => add(s)}
+            className="rounded-full border border-line bg-white/70 px-2.5 py-1.5 text-[12px] text-ink/80 active:scale-95"
+          >
+            + {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SectionHead({ eyebrow, title, note }: { eyebrow: string; title: string; note: string }) {
+  return (
+    <div className="mb-4 mt-8">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-gold">{eyebrow}</p>
+      <h2 className="mt-1 font-serif text-[26px] leading-tight">{title}</h2>
+      <p className="mt-1 text-xs text-taupe">{note}</p>
+    </div>
+  );
+}
+
+function Progress({ done, total }: { done: number; total: number }) {
+  const r = 16;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative grid h-11 w-11 place-items-center">
+      <svg viewBox="0 0 40 40" className="absolute inset-0 -rotate-90">
+        <circle cx="20" cy="20" r={r} fill="none" stroke="rgb(255 255 255 / 0.25)" strokeWidth="3" />
+        <circle
+          cx="20"
+          cy="20"
+          r={r}
+          fill="none"
+          stroke="#e9cfb4"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - done / total)}
+          className="transition-[stroke-dashoffset] duration-700"
+        />
+      </svg>
+      <span className="text-[11px] font-semibold">
+        {done}/{total}
+      </span>
+    </div>
+  );
+}
+
+function Tile({
+  job,
+  kind = "image",
+  aspect,
+  label,
+  hint,
+  badge,
+  index,
+  className = "",
+  now = 0,
+  poster,
+  onOpen,
+  onRetry,
+  onStart,
+}: {
+  job: Job;
+  kind?: "image" | "video";
+  aspect: string;
+  label: string;
+  hint: string;
+  badge?: string;
+  index: number;
+  className?: string;
+  now?: number;
+  poster?: string;
+  onOpen: (url: string) => void;
+  onRetry: () => void;
+  onStart?: () => void;
+}) {
+  return (
+    <div className={`fade-up ${className}`} style={{ animationDelay: `${index * 60}ms` }}>
+      <div className={`relative ${aspect} overflow-hidden rounded-3xl bg-line/60 shadow-[0_14px_28px_-20px_rgb(23_22_26/0.6)]`}>
+        {job.status === "done" &&
+          (kind === "image" ? (
+            <button onClick={() => onOpen(job.url)} className="block h-full w-full active:scale-[0.98]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={job.url} alt={label} className="h-full w-full object-cover" />
+            </button>
+          ) : (
+            <button onClick={() => onOpen(job.url)} className="block h-full w-full">
+              <video src={job.url} className="h-full w-full object-cover" autoPlay loop muted playsInline />
+            </button>
+          ))}
+
+        {job.status === "loading" && (
+          <div className="shimmer absolute inset-0 flex flex-col items-center justify-center gap-2 text-[11px] font-medium text-taupe">
+            <IconSparkle className="h-6 w-6 animate-pulse text-gold" />
+            {kind === "video" ? (
+              <>
+                <span>Đang dựng video</span>
+                <span className="font-serif text-lg text-ink">{Math.max(0, Math.floor((now - job.startedAt) / 1000))}s</span>
+              </>
+            ) : (
+              <span>Đang chỉnh ảnh…</span>
+            )}
+          </div>
+        )}
+
+        {job.status === "error" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-cream p-4 text-center">
+            <p className="line-clamp-4 text-[11px] leading-relaxed text-rosegold">{job.error}</p>
+            <button onClick={onRetry} className="rounded-full border border-line bg-white px-4 py-1.5 text-xs font-medium active:scale-95">
+              Thử lại
+            </button>
+          </div>
+        )}
+
+        {job.status === "idle" && onStart && (
+          <button onClick={onStart} className="group absolute inset-0 active:scale-[0.98]">
+            {poster && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={poster} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-[2px]" />
+            )}
+            <span className="absolute inset-0 bg-gradient-to-t from-ink/70 via-ink/10 to-transparent" />
+            <span className="glass absolute left-1/2 top-1/2 grid h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full shadow-lg">
+              <IconPlay />
+            </span>
+            <span className="absolute inset-x-0 bottom-3 text-center text-xs font-medium text-cream">Chạm để tạo</span>
+          </button>
+        )}
+
+        {badge && (
+          <span className="glass absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[10px] font-semibold text-ink">
+            ✦ {badge}
+          </span>
+        )}
+      </div>
+      <p className="mt-2 px-1 text-[13px] font-semibold leading-tight">{label}</p>
+      <p className="px-1 text-[11px] leading-snug text-taupe">{hint}</p>
+    </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+  count,
+  pulse,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  count: number;
+  pulse?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`relative flex flex-1 items-center justify-center gap-2 rounded-full py-2 text-[13px] font-medium transition active:scale-95 ${
+        active ? "bg-cream text-ink shadow-[0_1px_3px_rgb(23_22_26/0.15)]" : "text-taupe"
+      }`}
+    >
+      {icon}
+      {label}
+      {count > 0 && <span className="rounded-full bg-gold/15 px-1.5 text-[10px] font-semibold text-gold">{count}</span>}
+      {pulse && <span className="absolute right-5 top-2 h-2 w-2 animate-ping rounded-full bg-rosegold" />}
+    </button>
+  );
+}
+
+function Lightbox({
+  viewer,
+  isSource,
+  onClose,
+  onUseForVideo,
+  onCaption,
+}: {
+  viewer: Viewer;
+  isSource: boolean;
+  onClose: () => void;
+  onUseForVideo: () => void;
+  onCaption: () => void;
+}) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fade-up fixed inset-0 z-50 flex flex-col bg-[#120d0a]">
+      <div className="flex justify-end px-4 pt-[max(1rem,env(safe-area-inset-top))]">
+        <button onClick={onClose} aria-label="Đóng" className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white active:scale-95">
+          <IconClose />
+        </button>
+      </div>
+      <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-3">
+        {viewer.kind === "image" ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={viewer.url} alt="" className="max-h-full max-w-full rounded-3xl object-contain" />
+        ) : (
+          <video src={viewer.url} className="max-h-full max-w-full rounded-3xl" autoPlay loop playsInline controls />
+        )}
+      </div>
+      <div className="flex gap-2.5 px-5 pb-safe pt-2">
+        <button
+          onClick={() => shareOrDownload(viewer.url, viewer.name)}
+          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-cream py-3.5 text-sm font-semibold text-ink active:scale-[0.98]"
+        >
+          <IconShare /> Lưu / Chia sẻ
+        </button>
+        {viewer.kind === "image" && viewer.styleId && (
+          <button
+            onClick={onUseForVideo}
+            className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/20 py-3.5 text-sm font-medium text-cream active:scale-[0.98]"
+          >
+            <IconFilm /> {isSource ? "Xem video" : "Làm video"}
+          </button>
+        )}
+        {viewer.kind === "image" && (
+          <button
+            onClick={onCaption}
+            className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/20 py-3.5 text-sm font-medium text-cream active:scale-[0.98]"
+          >
+            <IconPen /> Viết caption
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Icon ---------- */
+
+const iconProps = {
+  width: 18,
+  height: 18,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.8,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
+const IconPhoto = () => (
+  <svg {...iconProps}>
+    <rect x="3" y="3" width="18" height="18" rx="4" />
+    <circle cx="9" cy="9" r="1.8" />
+    <path d="m21 15-4.5-4.5L6 21" />
+  </svg>
+);
+const IconFilm = () => (
+  <svg {...iconProps}>
+    <rect x="3" y="4" width="18" height="16" rx="3" />
+    <path d="m10 9 5 3-5 3z" fill="currentColor" />
+  </svg>
+);
+const IconPen = () => (
+  <svg {...iconProps}>
+    <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z" />
+    <path d="m13.5 6.5 4 4" />
+  </svg>
+);
+const IconCamera = () => (
+  <svg {...iconProps}>
+    <path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a1 1 0 0 1 1-1z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </svg>
+);
+/* ---------- Menu trượt bên trái ---------- */
+
+const MENU_TOOLS: { tab: Tab; title: string; desc: string; icon: () => React.ReactNode; badge?: string }[] = [
+  { tab: "photos", title: "Ảnh AI", desc: "Chỉnh ảnh móng đẹp như studio", icon: () => <IconPhoto /> },
+  { tab: "videos", title: "Video AI", desc: "Biến ảnh thành video chân thực", icon: () => <IconFilm /> },
+  { tab: "caption", title: "Viết caption", desc: "Bài đăng + hashtag từ ảnh móng", icon: () => <IconPen />, badge: "Mới" },
+  { tab: "logo", title: "Thiết kế logo", desc: `${LOGO_TEMPLATES.length} mẫu cho tiệm nail, tự sửa`, icon: () => <IconSparkle className="h-[18px] w-[18px]" />, badge: "Miễn phí" },
+  { tab: "price", title: "Bảng giá dịch vụ", desc: `${MENU_TEMPLATES.length + PRICE_TEMPLATES.length} mẫu, menu 2 mặt in A4`, icon: () => <IconList />, badge: "Miễn phí" },
+  { tab: "card", title: "Thẻ tích điểm", desc: `${CARD_TEMPLATES.length} mẫu, có ${CARD_TEMPLATES.filter((t) => t.isNew).length} mẫu mới · in 2 mặt`, icon: () => <IconCard />, badge: "Miễn phí" },
+  { tab: "voucher", title: "Voucher quà tặng", desc: "30 mẫu phiếu quà tặng, in khổ DL", icon: () => <IconGift />, badge: "Miễn phí" },
+  { tab: "flyer", title: "Tờ rơi quảng cáo", desc: `${FLYER_TEMPLATES.length + PROMO_TEMPLATES.length} mẫu khai trương & giảm giá, in A4`, icon: () => <IconFlyer />, badge: "Miễn phí" },
+  { tab: "stamp", title: "Con dấu tích điểm", desc: `${STAMP_TEMPLATES.length} mẫu dấu tròn 1 cm, gửi xưởng khắc`, icon: () => <IconStamp />, badge: "Mới" },
+];
+
+function SideMenu({
+  open,
+  tab,
+  user,
+  quota,
+  footer,
+  busy,
+  onClose,
+  onSelect,
+}: {
+  open: boolean;
+  tab: Tab;
+  user: SessionUser | null;
+  quota: QuotaSummary | null;
+  footer: SiteFooter;
+  busy: { photos: boolean; videos: boolean };
+  onClose: () => void;
+  onSelect: (t: Tab) => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  return (
+    <div className={`absolute inset-0 z-40 lg:hidden ${open ? "" : "pointer-events-none"}`} inert={!open}>
+      <div onClick={onClose} className={`absolute inset-0 bg-ink/30 transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`} />
+      <aside
+        role="dialog"
+        aria-label="Menu"
+        className={`absolute inset-y-0 left-0 flex w-[84%] max-w-[330px] flex-col bg-ivory shadow-[20px_0_50px_-20px_rgb(23_22_26/0.45)] transition-transform duration-300 ease-out ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex items-center justify-between border-b border-line/70 px-5 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))]">
+          <div className="flex items-baseline gap-2">
+            <span className="font-serif text-[26px] italic leading-none tracking-tight">Salonly</span>
+            <span className="rounded-full border border-gold/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.22em] text-gold">
+              AI Studio
+            </span>
+          </div>
+          <button onClick={onClose} aria-label="Đóng menu" className="grid h-9 w-9 place-items-center rounded-full border border-line bg-cream active:scale-95">
+            <IconClose />
+          </button>
+        </div>
+
+        <MenuList tab={tab} busy={busy} onSelect={onSelect} />
+
+        <div className="border-t border-line/70 px-3 pb-safe pt-3">
+          <AccountBox user={user} quota={quota} />
+          <SiteCredit footer={footer} className="mt-3 px-1" />
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function MenuList({ tab, busy, onSelect }: { tab: Tab; busy: { photos: boolean; videos: boolean }; onSelect: (t: Tab) => void }) {
+  return (
+    <nav className="no-scrollbar flex-1 overflow-y-auto px-3 py-4">
+      <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-gold">Công cụ</p>
+      <ul className="space-y-1">
+        {MENU_TOOLS.map((m) => {
+          const on = m.tab === tab;
+          const working = (m.tab === "photos" || m.tab === "videos") && busy[m.tab];
+          return (
+            <li key={m.tab}>
+              <button
+                onClick={() => onSelect(m.tab)}
+                aria-current={on ? "page" : undefined}
+                className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition active:scale-[0.98] ${
+                  on ? "border-gold/60 bg-cream shadow-[inset_0_0_0_1px_var(--color-gold)]" : "border-transparent"
+                }`}
+              >
+                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${on ? "gold-btn text-cream" : "bg-gold/10 text-gold"}`}>{m.icon()}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2 text-[14px] font-semibold">
+                    {m.title}
+                    {m.badge && <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[9px] font-semibold text-gold">{m.badge}</span>}
+                    {working && <span className="h-2 w-2 animate-ping rounded-full bg-rosegold" />}
+                  </span>
+                  <span className="block truncate text-[11.5px] text-taupe">{m.desc}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+// Máy tính: menu công cụ luôn hiện bên trái.
+function DesktopNav({ tab, user, quota, footer, busy, onSelect }: { tab: Tab; user: SessionUser | null; quota: QuotaSummary | null; footer: SiteFooter; busy: { photos: boolean; videos: boolean }; onSelect: (t: Tab) => void }) {
+  return (
+    <aside className="hidden w-[280px] shrink-0 flex-col border-r border-line/70 bg-cream/60 lg:flex">
+      <div className="flex items-baseline gap-2 border-b border-line/70 px-6 py-[1.35rem]">
+        <span className="font-serif text-[28px] italic leading-none tracking-tight">Salonly</span>
+        <span className="rounded-full border border-gold/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.22em] text-gold">AI Studio</span>
+      </div>
+      <MenuList tab={tab} busy={busy} onSelect={onSelect} />
+      <div className="border-t border-line/70 px-3 py-3">
+        <AccountBox user={user} quota={quota} />
+        <SiteCredit footer={footer} className="mt-3 px-1" />
+      </div>
+    </aside>
+  );
+}
+
+// Tài khoản thành viên đang đăng nhập: tên, lượt đã dùng trong tháng và nút đăng xuất.
+function AccountBox({ user, quota }: { user: SessionUser | null; quota: QuotaSummary | null }) {
+  // Khách chưa đăng nhập: mời tạo tài khoản (để có hạn mức riêng và lưu lịch sử).
+  if (!user || !quota)
+    return (
+      <div className="rounded-2xl bg-white/60 p-3">
+        <p className="text-[13px] font-semibold">Bạn đang dùng không cần tài khoản</p>
+        <p className="mt-0.5 text-[11.5px] leading-snug text-taupe">Tạo tài khoản miễn phí để có lượt tạo riêng mỗi tháng.</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Link href="/login" className="flex h-9 items-center justify-center rounded-full border border-line bg-cream text-[12.5px] active:scale-95">
+            Đăng nhập
+          </Link>
+          <Link href="/register" className="gold-btn flex h-9 items-center justify-center rounded-full text-[12.5px] font-medium text-cream active:scale-95">
+            Tạo tài khoản
+          </Link>
+        </div>
+      </div>
+    );
+  const q = (k: keyof QuotaSummary) => (quota[k].limit === null ? `${quota[k].used}` : `${quota[k].used}/${quota[k].limit}`);
+  const out = (["image", "video"] as const).some((k) => quota[k].limit !== null && quota[k].used >= quota[k].limit!);
+  return (
+    <div className="rounded-2xl bg-white/60 p-3">
+      <div className="flex items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold/15 font-serif text-[17px] text-gold">{user.username[0]?.toUpperCase()}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[14px] font-semibold">{user.username}</span>
+          <span className="block truncate text-[11.5px] text-taupe">{user.email}</span>
+        </span>
+      </div>
+      <p className={`mt-2.5 rounded-xl px-2.5 py-1.5 text-[11.5px] ${out ? "bg-rosegold/10 text-rosegold" : "bg-gold/10 text-taupe"}`}>
+        Tháng này: <b className="text-ink">{q("image")}</b> ảnh · <b className="text-ink">{q("video")}</b> video
+        {quota.image.limit === null && quota.video.limit === null ? " · không giới hạn" : ""}
+      </p>
+      <div className="mt-3">
+        <form action={logout}>
+          <button type="submit" className="h-9 w-full rounded-full border border-line bg-cream text-[12.5px] text-taupe active:scale-95">
+            Đăng xuất
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const IconMenu = () => (
+  <svg {...iconProps}>
+    <path d="M4 7h16M4 12h10M4 17h16" />
+  </svg>
+);
+const IconList = () => (
+  <svg {...iconProps}>
+    <rect x="4" y="3" width="16" height="18" rx="3" />
+    <path d="M8 8h8M8 12h8M8 16h5" />
+  </svg>
+);
+const IconCard = () => (
+  <svg {...iconProps}>
+    <rect x="3" y="5" width="18" height="14" rx="3" />
+    <circle cx="8" cy="12" r="1.2" />
+    <circle cx="12" cy="12" r="1.2" />
+    <circle cx="16" cy="12" r="1.2" />
+  </svg>
+);
+const IconGift = () => (
+  <svg {...iconProps}>
+    <rect x="3" y="9" width="18" height="12" rx="2" />
+    <path d="M3 13h18M12 9v12M12 9c-2-4-7-4-6-1 .5 1.5 3 1 6 1Zm0 0c2-4 7-4 6-1-.5 1.5-3 1-6 1Z" />
+  </svg>
+);
+const IconFlyer = () => (
+  <svg {...iconProps}>
+    <rect x="5" y="2" width="14" height="20" rx="2" />
+    <path d="M8 7h8M8 11h8M8 15h5M8 18h4" />
+  </svg>
+);
+
+const IconStamp = () => (
+  <svg {...iconProps}>
+    <path d="M9 3h6v5a2 2 0 0 1-1 1.7V12h-4V9.7A2 2 0 0 1 9 8Z" />
+    <rect x="5" y="12" width="14" height="5" rx="1.5" />
+    <path d="M6 20h12" />
+  </svg>
+);
+
+const IconSwap = () => (
+  <svg {...iconProps} width={14} height={14}>
+    <path d="M4 7h13l-3-3M20 17H7l3 3" />
+  </svg>
+);
+const IconShare = () => (
+  <svg {...iconProps}>
+    <path d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
+  </svg>
+);
+const IconClose = () => (
+  <svg {...iconProps}>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </svg>
+);
+const IconPlay = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" className="ml-0.5 text-ink">
+    <path d="M7 4.5v15l12-7.5z" fill="currentColor" />
+  </svg>
+);
+const IconSparkle = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M12 2c.4 4.6 2.4 6.6 7 7-4.6.4-6.6 2.4-7 7-.4-4.6-2.4-6.6-7-7 4.6-.4 6.6-2.4 7-7z" />
+    <path d="M19 14c.2 2.2 1.1 3.1 3.3 3.3-2.2.2-3.1 1.1-3.3 3.3-.2-2.2-1.1-3.1-3.3-3.3 2.2-.2 3.1-1.1 3.3-3.3z" opacity=".6" />
+  </svg>
+);

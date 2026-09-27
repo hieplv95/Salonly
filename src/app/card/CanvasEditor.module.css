@@ -1,0 +1,149 @@
+.editor{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;background:#f6f6f5;color:#17161a;font-family:Montserrat,Arial,sans-serif;font-size:12px;line-height:1.5}
+.editor *{box-sizing:border-box}
+.editor button,.editor input,.editor select{font:inherit}
+.editor button{cursor:pointer;border:1px solid #e7e5e8;background:#ffffff;color:inherit;border-radius:8px;padding:8px 10px;transition:background .15s}
+.editor button:hover:not(:disabled){background:#f1f0ee}
+.editor button:disabled{cursor:default;opacity:.4}
+.editor button:focus-visible,.editor input:focus,.editor select:focus{outline:2px solid #a17d52;outline-offset:2px}
+.editor input:not([type=file]):not([type=color]):not([type=range]):not([type=checkbox]),.editor select{border:1px solid #e7e5e8;background:white;border-radius:7px;padding:9px 10px;width:100%;min-width:0;color:#17161a}
+.editor h2{font-family:"Cormorant Garamond",Georgia,serif;font-size:25px;font-weight:600;line-height:1.1;margin:4px 0 20px}
+.editor h3{font-size:11px;font-weight:600;margin:23px 0 10px}
+.editor label{display:block;font-size:10px;font-weight:500}
+.editor label>input,.editor label>select{margin-top:6px}
+.header{height:76px;flex-shrink:0;display:flex;align-items:center;gap:15px;padding:12px 22px;border-bottom:1px solid #e7e5e8;background:#ffffff}
+.header .back{border:none;background:none;font-size:15px;white-space:nowrap;padding:10px 16px 10px 0}
+.back span{font-size:11px;margin-left:8px}
+.documentName{flex:1;min-width:100px;max-width:540px;margin-right:auto}
+.documentName input:not([type=file]):not([type=color]){border:none;background:transparent;padding:2px 0;font-size:14px;font-weight:600}
+.documentName small{display:block;color:#8a868e;font-size:10px;margin-top:3px}
+.header select{width:130px}
+.header .primary{background:#17161a;color:#fff;border-color:#17161a;padding:11px 19px;font-weight:600;white-space:nowrap}
+.header .primary:hover:not(:disabled){background:#2e2c33}
+.history{display:flex;gap:5px}.history button{font-size:23px;line-height:1;padding:7px 12px}
+.body{display:grid;grid-template-columns:240px minmax(0,1fr) 250px;flex:1;min-height:0}
+.library,.inspector{background:#ffffff;overflow-y:auto;overscroll-behavior:contain}
+.library{border-right:1px solid #e7e5e8}.inspector{border-left:1px solid #e7e5e8;padding:25px 18px}
+.tabs{display:flex;padding:12px;gap:6px;border-bottom:1px solid #e7e5e8;position:sticky;top:0;background:#ffffff;z-index:1}
+.tabs button{flex:1;border-color:transparent;background:transparent;font-size:12px}
+.tabs button[aria-pressed=true]{background:#f3ede4;color:#7d5f3a}
+.libraryContent{padding:24px 17px}.eyebrow{color:#a17d52;letter-spacing:2px;font-size:9px;font-weight:600;margin:0}
+.addText{width:100%;display:flex;align-items:center;justify-content:center;gap:14px;font-family:Georgia,serif!important;font-size:26px!important;padding:13px!important}
+.addText span{font-family:Montserrat,Arial,sans-serif;font-size:12px;font-weight:500}
+.upload{width:100%;margin-top:10px;padding:14px 8px!important;background:#f3f2f0!important}
+.upload small{display:block;font-size:9px;margin-top:6px;color:#8a868e}
+.assets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.assets button{display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:78px;font-size:9px;line-height:1.4;gap:5px;text-align:center}
+.assets button span{font-size:25px;color:#a17d52;line-height:1.2}
+.wideButton{width:100%;margin-top:9px;font-size:10px!important}
+.tip{font-size:10px;color:#77737b;line-height:1.9;margin:16px 0}
+.center{display:flex;flex-direction:column;min-width:0;min-height:0}
+.contextBar{height:47px;flex-shrink:0;background:#fafaf9;display:flex;align-items:center;gap:14px;padding:0 22px;border-bottom:1px solid #e7e5e8;font-size:10px}
+.contextBar>span:first-child{font-weight:600;white-space:nowrap}.contextBar>span:nth-child(2){color:#8a868e;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.contextBar button{border:0;background:transparent;padding:4px;font-size:10px}
+.workspace{flex:1;min-height:0;overflow:auto;display:flex;padding:55px 50px;background-color:#eeedeb;background-image:radial-gradient(#d4d2d0 0.6px,transparent 0.6px);background-size:18px 18px;overscroll-behavior:contain}
+.artboard{position:relative;flex:none;margin:auto;box-shadow:0 14px 40px -16px #17161a40;background:#fff}
+.scene{display:block;width:100%;height:100%;overflow:visible;touch-action:none;user-select:none}
+.inlineText{position:absolute;z-index:2;box-shadow:0 2px 20px #17161a22;border:2px solid #a17d52!important;background:#ffffff!important;color:#17161a;padding:5px 8px!important;border-radius:0!important;max-width:100%}
+.pageBar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;border-top:1px solid #e7e5e8;background:#fafaf9;padding:12px 22px;min-height:98px}
+.pages{display:flex;gap:12px}.pages button{padding:5px;border-color:transparent;background:transparent;border-radius:7px;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:9px}.pages button svg{width:74px;height:43px;background:white;box-shadow:0 1px 5px #17161a20}.pages button[aria-pressed=true]{border-color:#a17d52;background:#f5efe6}.pages button[aria-pressed=true] span{color:#17161a}
+.zoom{display:flex;gap:3px;align-items:center}.zoom button{font-size:11px;min-width:29px;border:none;background:transparent;padding:6px}
+.grid2,.twoButtons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}.twoButtons button{font-size:9px;padding:8px 4px}.grid2 input{padding:8px!important}
+.properties{border:0;padding:0;margin:0;min-width:0}.properties:disabled{opacity:.5}.textFields{border-bottom:1px solid #e7e5e8;padding:18px 0}.textFields>label+label{margin-top:12px}
+.colorLabel{display:flex!important;align-items:center;justify-content:space-between;gap:8px;margin-top:17px}.colorLabel input{width:31px;height:31px;border:0;background:none;padding:0;margin:0!important;cursor:pointer}.grid2 .colorLabel{margin-top:0;flex-direction:column;align-items:flex-start;justify-content:flex-start}
+.properties>label{margin-top:18px}.properties small{display:block;color:#77737b;font-size:9px;margin-top:4px}.shortcut{margin-top:35px;padding-top:20px;border-top:1px solid #e7e5e8;color:#77737b;font-size:10px}.shortcut p{margin-top:9px}.shortcut b{color:#3d3a42;font-weight:500}
+.layerList{padding:0 8px 20px}.layerList>.tip{padding:0 9px}.layer{display:flex;align-items:center;gap:2px;border-radius:8px;margin:4px 0;border:1px solid transparent}.layer.activeLayer{background:#f5efe6;border-color:#e2d5c1}.layer button{background:none;border:0;font-size:11px;padding:9px 5px}.layer .layerName{display:flex;align-items:center;gap:10px;flex:1;min-width:0;text-align:left}.layerName span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px}.layerName:first-letter{font-family:Georgia,serif}
+.error{background:#fbebdf;border-bottom:1px solid #e9c8af;color:#82512c;padding:8px 22px;font-size:11px;display:flex;justify-content:space-between;align-items:center}.error button{border:0;background:none;padding:0 6px}
+.exportOnly{position:fixed;left:-20000px;top:0;width:1050px;visibility:hidden;pointer-events:none}
+@media(min-width:1600px){.body{grid-template-columns:265px minmax(0,1fr) 275px}.libraryContent{padding:28px 22px}.inspector{padding:28px 22px}}
+@media(max-width:1100px){.body{grid-template-columns:195px minmax(0,1fr) 210px}.header{padding:10px 14px;gap:8px}.libraryContent{padding:20px 12px}.inspector{padding:20px 12px}.contextBar{padding:0 12px}.workspace{padding:40px}.pageBar{padding:10px 12px}.header select{width:105px}}
+
+/* Bấm vào thẻ không hiện viền focus của trình duyệt quanh cả thẻ (dễ tưởng đang chọn cả thẻ); dùng bàn phím thì viền nét đứt nhẹ. */
+.scene:focus{outline:none}.scene:focus-visible{outline:2px dashed #a17d5266;outline-offset:8px}
+
+/* ---------- Thành phần mới: chữ nhiều dòng, bảng màu, căn chỉnh, hiệu ứng ---------- */
+.editor textarea{font:inherit;border:1px solid #e7e5e8;background:white;border-radius:7px;padding:9px 10px;width:100%;min-width:0;color:#17161a;resize:vertical;margin-top:6px;line-height:1.45}
+.editor textarea:focus{outline:2px solid #a17d52;outline-offset:2px}
+.textPresets{display:grid;gap:6px}
+.textPresets button{text-align:left;padding:10px 12px}
+.textPresets button:nth-child(1){font-family:"Playfair Display",Georgia,serif;font-size:19px;font-weight:600}
+.textPresets button:nth-child(2){font-size:14px;font-weight:600}
+.textPresets button:nth-child(4){font-size:11px}
+.textPresets button:nth-child(3){font-family:"Great Vibes",cursive;font-size:22px}
+.iconGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.iconGrid button{padding:5px;aspect-ratio:1;display:flex;align-items:center;justify-content:center}
+.iconGrid svg{width:100%;height:100%;display:block}
+.swatches{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.editor .swatches button{width:24px;height:24px;padding:0;border-radius:50%;border:1px solid #0000001f;box-shadow:inset 0 0 0 2px #fff}
+.editor .swatches button:hover{transform:scale(1.12)}
+.alignRow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
+.editor .alignRow button{padding:7px 0;font-size:15px;line-height:1}
+.toggleRow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin-top:12px}
+.editor .toggleRow button{padding:7px 0;font-size:14px;line-height:1;font-family:Georgia,serif}
+.editor .toggleRow button[aria-pressed=true]{background:#f3ede4;border-color:#d6c3a6;color:#7d5f3a}
+.rangeLabel input{width:100%;margin-top:8px;accent-color:#17161a}
+.checkLabel{display:flex!important;align-items:center;gap:8px;margin-top:14px;font-size:11px!important;cursor:pointer}
+.checkLabel input{accent-color:#17161a;width:16px;height:16px;margin:0}
+.twoButtons button[disabled]{opacity:.4}
+.exportGroup{display:flex;gap:8px;align-items:center}
+.sheetClose,.mobileBar{display:none!important}
+
+/* ---------- Hộp thoại cắt ảnh (nằm ngoài .editor) ---------- */
+.cropBackdrop{position:fixed;inset:0;z-index:1100;background:#141317cc;display:flex;align-items:center;justify-content:center;padding:16px;font-family:Montserrat,Arial,sans-serif;color:#17161a;font-size:12px}
+.cropDialog{background:#ffffff;border-radius:14px;padding:18px;max-width:600px;max-height:100%;overflow:auto;box-shadow:0 20px 60px #0006}
+.cropDialog h2{font-family:"Cormorant Garamond",Georgia,serif;font-size:22px;font-weight:600;margin:0 0 14px}
+.cropDialog button{font:inherit;cursor:pointer;border:1px solid #e7e5e8;background:#ffffff;color:inherit;border-radius:8px;padding:7px 10px}
+.cropDialog button:hover{background:#f1f0ee}
+.cropDialog button[aria-pressed=true]{background:#f3ede4;border-color:#d6c3a6;color:#7d5f3a}
+.cropStage{position:relative;margin:0 auto;overflow:hidden;user-select:none;touch-action:none;background:repeating-conic-gradient(#eee 0 25%,#fff 0 50%) 0 0/16px 16px}
+.cropStage img{display:block;pointer-events:none}
+.cropBox{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px #000a;cursor:move;touch-action:none}
+.cropHandle{position:absolute;width:18px;height:18px;background:#fff;border:2px solid #17161a;border-radius:4px;touch-action:none}
+.cropHandle[data-corner=nw]{left:-2px;top:-2px;cursor:nwse-resize}
+.cropHandle[data-corner=ne]{right:-2px;top:-2px;cursor:nesw-resize}
+.cropHandle[data-corner=sw]{left:-2px;bottom:-2px;cursor:nesw-resize}
+.cropHandle[data-corner=se]{right:-2px;bottom:-2px;cursor:nwse-resize}
+.cropTools{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.cropRadius{display:block;margin-top:14px;font-size:11px}
+.cropRadius input{width:100%;accent-color:#17161a;margin-top:6px}
+.cropActions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.cropDialog .primary{background:#17161a;color:#fff;border-color:#17161a;font-weight:600;padding:9px 18px}
+.cropDialog .primary:hover{background:#2e2c33}
+
+/* ---------- Điện thoại: khung vẽ tràn màn hình, thanh công cụ dưới đáy, bảng trượt ---------- */
+@media(max-width:760px){
+  .editor{overflow:hidden}
+  .header{height:auto;min-height:0;padding:8px 10px;gap:6px}
+  .back span,.documentName small{display:none}
+  .header .back{padding:6px 4px;font-size:18px}
+  .documentName{min-width:60px}
+  .documentName input:not([type=file]):not([type=color]){font-size:13px}
+  .history{gap:2px}.history button{padding:5px 7px;font-size:19px}
+  .exportGroup{gap:4px}
+  .header select{width:64px;font-size:10px;padding:7px 4px}
+  .header .primary{padding:8px 10px;font-size:10px}
+  .body{display:flex;flex-direction:column;position:relative}
+  .center{flex:1}
+  .contextBar{height:38px;gap:6px;padding:0 10px;font-size:10px}
+  .contextBar>span:first-child{display:none}
+  .workspace{padding:22px 12px;touch-action:pan-x pan-y}
+  .pageBar{min-height:0;padding:6px 10px;gap:6px}
+  .pages{gap:4px}.pages button{flex-direction:row;font-size:9px;padding:3px 6px}.pages button svg{width:40px;height:24px}
+  .zoom button{padding:4px;min-width:26px;font-size:10px}
+  .library,.inspector{position:fixed;left:0;right:0;bottom:58px;z-index:20;max-height:min(62dvh,560px);border:0!important;border-radius:16px 16px 0 0;box-shadow:0 -10px 34px #17161a30;transform:translateY(calc(100% + 70px));transition:transform .22s ease;visibility:hidden}
+  .library[data-sheet=open],.inspector[data-sheet=open]{transform:none;visibility:visible}
+  .inspector{padding:14px 16px 24px}
+  .inspector h2{font-size:21px;margin-bottom:10px}
+  .libraryContent{padding:14px 16px 24px}
+  .library h2,.shortcut,.upload small{display:none}
+  .tabs{padding:8px 10px}
+  .sheetClose{display:block!important;flex:0 0 auto!important;border:0!important;background:none!important;font-size:15px!important}
+  .inspector>.sheetClose{position:sticky;top:0;margin:-6px -6px 0 auto;z-index:2}
+  .assets{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .iconGrid{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .textPresets{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid2,.twoButtons{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .editor input:not([type=file]):not([type=color]),.editor select,.editor textarea{font-size:16px}
+  .mobileBar{display:flex!important;flex-shrink:0;height:58px;border-top:1px solid #e7e5e8;background:#ffffff;z-index:21;padding:0 4px env(safe-area-inset-bottom)}
+  .editor .mobileBar button{flex:1;border:0;background:none;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:18px;line-height:1.1;padding:4px 0}
+  .editor .mobileBar button span{font-size:9.5px;font-weight:500}
+  .editor .mobileBar button[aria-pressed=true]{color:#17161a;background:#f5efe6}
+}
