@@ -19,6 +19,7 @@ import {
   setLocations,
   setRequireLogin,
   setFooter,
+  setGuestTrial,
   setSeo,
   setSourceCredit,
   setSourceEnabled,
@@ -148,6 +149,15 @@ export async function saveSeoAction(fd: FormData) {
     longitude: coord(v("longitude", 20), 180),
   });
   revalidatePath("/", "layout");
+}
+
+/* ---------- Lượt dùng thử của khách chưa đăng nhập ---------- */
+
+export async function saveGuestTrialAction(fd: FormData) {
+  await requireAdmin();
+  const n = Number(fd.get("trial"));
+  if (Number.isFinite(n) && n >= 0) setGuestTrial(n);
+  revalidatePath("/admin/settings");
 }
 
 /* ---------- Bắt buộc đăng nhập ---------- */

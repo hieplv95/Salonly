@@ -3,7 +3,7 @@ import { cleanCrop } from "@/lib/crop";
 import { cleanNote, cleanVideoModel, cleanVideoRatio, friendlyError, getVideo, parseDataUrl, startVideo } from "@/lib/gemini";
 import { apiAccess, apiMember } from "@/lib/auth/session";
 import { DEFAULT_VIDEO_MODEL } from "@/lib/presets";
-import { finalize, quotaSummary, release, reserve } from "@/lib/usage";
+import { finalize, release, reserveSlot, usageInfo } from "@/lib/usage";
 
 export const maxDuration = 120;
 
@@ -17,12 +17,12 @@ export async function POST(req: Request) {
   if (denied) return denied;
   const { image, motionId, note, ratio, crop, model } = await req.json();
   const chosen = cleanVideoModel(model);
-  const slot = reserve(user, "video", chosen);
-  if ("error" in slot) return Response.json({ error: slot.error, quota: quotaSummary(user) }, { status: 429 });
+  const { slot, visitor } = await reserveSlot(user, "video", chosen);
+  if ("error" in slot) return Response.json({ error: slot.error, needAccount: slot.needAccount, ...usageInfo(user, visitor) }, { status: 429 });
   try {
     const { token: op, source } = await startVideo(parseDataUrl(image), motionId, cleanNote(note), cleanVideoRatio(ratio), cleanCrop(crop), chosen);
     finalize(slot.id, "video", chosen ?? DEFAULT_VIDEO_MODEL, source);
-    return Response.json({ op, quota: quotaSummary(user) });
+    return Response.json({ op, ...usageInfo(user, visitor) });
   } catch (e) {
     release(slot.id);
     return fail(e);

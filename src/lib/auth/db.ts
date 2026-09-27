@@ -21,7 +21,7 @@ export type UserRow = {
   video_quota: number | null;
 };
 
-const SCHEMA = 3;
+const SCHEMA = 4;
 const g = globalThis as unknown as { __naileDb?: DatabaseSync; __naileDbSchema?: number };
 
 function migrate(db: DatabaseSync) {
@@ -64,6 +64,11 @@ function migrate(db: DatabaseSync) {
   if (!ucols.has("source")) db.exec("ALTER TABLE usage ADD COLUMN source TEXT");
   if (!ucols.has("cost_usd")) db.exec("ALTER TABLE usage ADD COLUMN cost_usd REAL NOT NULL DEFAULT 0");
   db.exec("CREATE INDEX IF NOT EXISTS usage_source_time ON usage (source, created_at)");
+  // Lượt của khách chưa đăng nhập: mã trình duyệt (cookie) và IP đã băm, để giới hạn lượt dùng thử từng người.
+  if (!ucols.has("visitor")) db.exec("ALTER TABLE usage ADD COLUMN visitor TEXT");
+  if (!ucols.has("ip")) db.exec("ALTER TABLE usage ADD COLUMN ip TEXT");
+  db.exec("CREATE INDEX IF NOT EXISTS usage_visitor ON usage (visitor)");
+  db.exec("CREATE INDEX IF NOT EXISTS usage_ip_time ON usage (ip, created_at)");
 }
 
 export function db() {

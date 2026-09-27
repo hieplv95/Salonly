@@ -31,6 +31,8 @@ const BACK_DRAFTS_KEY = "naile-card-back-drafts";
 const ELEMENT_DRAFTS_KEY = "naile-card-element-drafts";
 const LAYOUT_DRAFTS_KEY = "naile-card-layout-drafts";
 const PER_PAGE = 12;
+// Trang có mẫu mới đầu tiên (nút "Xem mẫu mới").
+const NEW_PAGE = Math.max(0, Math.floor(CARD_TEMPLATES.findIndex((t) => t.isNew) / PER_PAGE));
 
 // Nội dung khách tự gõ: giữ lại khi đổi sang mẫu khác.
 const CONTENT_KEYS = ["salon", "tagline", "title", "offer", "reward", "midReward", "memberNo", "valid", "phone", "website", "social", "qr"] as const;
@@ -434,7 +436,7 @@ function CardForm({ editor, launch }: { editor: CardEditor; launch: React.ReactN
         <p className="mt-1 px-1 text-center text-[11px] text-taupe">Chạm vào chữ, hình, mã QR hoặc từng ô tích điểm để kéo thả.</p>
         <div className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-1 text-xs font-semibold text-gold">
           {backCopyFields && <button type="button" onClick={() => backCopyRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })} className="underline underline-offset-4">Sửa chữ mặt sau ↓</button>}
-          <button type="button" onClick={() => galleryRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })} className="underline underline-offset-4">
+          <button type="button" onClick={() => goPage(NEW_PAGE)} className="underline underline-offset-4">
             Xem {CARD_TEMPLATES.filter((t) => t.isNew).length} mẫu mới ↓
           </button>
         </div>

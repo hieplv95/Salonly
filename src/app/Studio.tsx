@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { SessionUser } from "@/lib/auth/session";
-import type { QuotaSummary } from "@/lib/usage";
+import type { QuotaSummary, TrialInfo } from "@/lib/usage";
 import type { SiteFooter } from "@/lib/settings";
 import { SiteCredit } from "./SiteCredit";
 import { logout } from "./(auth)/actions";
@@ -31,7 +31,7 @@ import {
   type Preset,
 } from "@/lib/presets";
 import { shareOrDownload } from "@/lib/share";
-import { errMsg, fileToDataUrl, postJson } from "./ai-client";
+import { ApiError, errMsg, fileToDataUrl, postJson } from "./ai-client";
 import { LogoFooter, LogoStudio, useLogoEditor } from "./logo/LogoStudio";
 import { LOGO_TEMPLATES } from "@/lib/logo-templates";
 import { PriceTabFooter, PriceTabStudio, usePriceTab } from "./menu/PriceTab";
@@ -60,9 +60,19 @@ type Viewer = { kind: "image" | "video"; url: string; name: string; styleId?: st
 const POLL_MS = 8000;
 
 // user = null: khách chưa đăng nhập (admin đã tắt "Bắt buộc đăng nhập").
-export function Studio({ user, quota: initialQuota, footer }: { user: SessionUser | null; quota: QuotaSummary | null; footer: SiteFooter }) {
+export function Studio({ user, quota: initialQuota, trial: initialTrial, footer }: { user: SessionUser | null; quota: QuotaSummary | null; trial: TrialInfo | null; footer: SiteFooter }) {
   // Lượt đã dùng / hạn mức tháng này; API trả số mới sau mỗi lần tạo.
   const [quota, setQuota] = useState(initialQuota);
+  // Khách chưa đăng nhập: lượt dùng thử; hết thì hiện hộp mời tạo tài khoản.
+  const [trial, setTrial] = useState(initialTrial);
+  const [needAccount, setNeedAccount] = useState<string | null>(null);
+  const trialOut = !user && !!trial && trial.used >= trial.limit;
+  const askAccount = () => setNeedAccount(trialOutMessage(trial?.limit ?? 0));
+  const onApiError = (e: unknown) => {
+    if (!(e instanceof ApiError)) return;
+    if (e.data.trial) setTrial(e.data.trial as TrialInfo);
+    if (e.needAccount) setNeedAccount(e.message);
+  };
   const [original, setOriginal] = useState<string | null>(null);
   const [images, setImages] = useState<Record<string, Job>>({});
   const [videos, setVideos] = useState<Record<string, Job>>({});
@@ -149,11 +159,13 @@ export function Studio({ user, quota: initialQuota, footer }: { user: SessionUse
         model,
       });
       if (data.quota && user) setQuota(data.quota);
+      if (data.trial) setTrial(data.trial);
       if (run !== imageRun.current) return;
       setDemo(data.demo);
       setImages((s) => ({ ...s, [styleId]: { status: "done", url: data.image } }));
       setUsedModels((u) => ({ ...u, [styleId]: data.model }));
     } catch (e) {
+      onApiError(e);
       if (run !== imageRun.current) return;
       setImages((s) => ({ ...s, [styleId]: { status: "error", error: errMsg(e) } }));
     }
@@ -166,7 +178,7 @@ export function Studio({ user, quota: initialQuota, footer }: { user: SessionUse
     const set = (job: Job) => sid === session.current && setVideos((s) => ({ ...s, [jobId]: job }));
     set({ status: "loading", startedAt: Date.now() });
     try {
-      const { op, quota: q } = await postJson("/api/video", {
+      const { op, quota: q, trial: t } = await postJson("/api/video", {
         image: sourceUrl,
         motionId: styleOf(jobId),
         note: videoNote.trim(),
@@ -175,6 +187,7 @@ export function Studio({ user, quota: initialQuota, footer }: { user: SessionUse
         model,
       });
       if (q && user) setQuota(q);
+      if (t) setTrial(t);
       while (sid === session.current) {
         await new Promise((r) => setTimeout(r, POLL_MS));
         const res = await fetch(`/api/video?op=${encodeURIComponent(op)}`);
@@ -186,6 +199,7 @@ export function Studio({ user, quota: initialQuota, footer }: { user: SessionUse
         }
       }
     } catch (e) {
+      onApiError(e);
       set({ status: "error", error: errMsg(e) });
     }
   }
@@ -221,6 +235,7 @@ export function Studio({ user, quota: initialQuota, footer }: { user: SessionUse
   // Bấm "Tạo ảnh": tạo đúng imageCount ảnh theo kế hoạch plannedJobs.
   function generateImages() {
     if (!original || !plannedJobs.length) return;
+    if (trialOut) return askAccount();
     const run = ++imageRun.current;
     const n = note.trim();
     const f = imageFormat;
@@ -254,6 +269,7 @@ export function Studio({ user, quota: initialQuota, footer }: { user: SessionUse
   function generateVideos() {
     const list = plannedVideos.filter((id) => videos[id]?.status !== "loading");
     if (!list.length) return;
+    if (trialOut) return askAccount();
     setVideoOrder((o) => [...list, ...o.filter((id) => !list.includes(id))]);
     list.forEach((id, i) => setTimeout(() => runVideo(id, videoFormat, videoModel), i * 4000));
   }
@@ -307,7 +323,7 @@ export function Studio({ user, quota: initialQuota, footer }: { user: SessionUse
       {/* Khung app: header – body – footer dùng chung một nền, một bề rộng */}
       {/* Điện thoại: khung một cột. Máy tính: menu cố định bên trái + nội dung toàn màn hình. */}
       <div className="app-shell relative flex h-dvh w-full overflow-hidden">
-        <DesktopNav tab={tab} user={user} quota={quota} footer={footer} busy={{ photos: imagesBusy, videos: videoBusy }} onSelect={selectTab} />
+        <DesktopNav tab={tab} user={user} quota={quota} trial={trial} footer={footer} busy={{ photos: imagesBusy, videos: videoBusy }} onSelect={selectTab} />
         <div className="relative flex min-w-0 flex-1 flex-col">
         {/* Header */}
         <header className="z-20 flex shrink-0 items-center justify-between border-b border-line/70 bg-ivory/80 px-5 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))] backdrop-blur-xl lg:px-10 lg:py-4">
@@ -594,12 +610,15 @@ export function Studio({ user, quota: initialQuota, footer }: { user: SessionUse
           tab={tab}
           user={user}
           quota={quota}
+          trial={trial}
           footer={footer}
           busy={{ photos: imagesBusy, videos: videoBusy }}
           onClose={() => setMenuOpen(false)}
           onSelect={selectTab}
         />
       </div>
+
+      {needAccount && <AccountPrompt message={needAccount} onClose={() => setNeedAccount(null)} />}
 
       {viewer && (
         <Lightbox
@@ -1283,6 +1302,7 @@ function SideMenu({
   tab,
   user,
   quota,
+  trial,
   footer,
   busy,
   onClose,
@@ -1292,6 +1312,7 @@ function SideMenu({
   tab: Tab;
   user: SessionUser | null;
   quota: QuotaSummary | null;
+  trial: TrialInfo | null;
   footer: SiteFooter;
   busy: { photos: boolean; videos: boolean };
   onClose: () => void;
@@ -1329,7 +1350,7 @@ function SideMenu({
         <MenuList tab={tab} busy={busy} onSelect={onSelect} />
 
         <div className="border-t border-line/70 px-3 pb-safe pt-3">
-          <AccountBox user={user} quota={quota} />
+          <AccountBox user={user} quota={quota} trial={trial} />
           <SiteCredit footer={footer} className="mt-3 px-1" />
         </div>
       </aside>
@@ -1373,7 +1394,7 @@ function MenuList({ tab, busy, onSelect }: { tab: Tab; busy: { photos: boolean; 
 }
 
 // Máy tính: menu công cụ luôn hiện bên trái.
-function DesktopNav({ tab, user, quota, footer, busy, onSelect }: { tab: Tab; user: SessionUser | null; quota: QuotaSummary | null; footer: SiteFooter; busy: { photos: boolean; videos: boolean }; onSelect: (t: Tab) => void }) {
+function DesktopNav({ tab, user, quota, trial, footer, busy, onSelect }: { tab: Tab; user: SessionUser | null; quota: QuotaSummary | null; trial: TrialInfo | null; footer: SiteFooter; busy: { photos: boolean; videos: boolean }; onSelect: (t: Tab) => void }) {
   return (
     <aside className="hidden w-[280px] shrink-0 flex-col border-r border-line/70 bg-cream/60 lg:flex">
       <div className="flex items-baseline gap-2 border-b border-line/70 px-6 py-[1.35rem]">
@@ -1382,7 +1403,7 @@ function DesktopNav({ tab, user, quota, footer, busy, onSelect }: { tab: Tab; us
       </div>
       <MenuList tab={tab} busy={busy} onSelect={onSelect} />
       <div className="border-t border-line/70 px-3 py-3">
-        <AccountBox user={user} quota={quota} />
+        <AccountBox user={user} quota={quota} trial={trial} />
         <SiteCredit footer={footer} className="mt-3 px-1" />
       </div>
     </aside>
@@ -1390,13 +1411,18 @@ function DesktopNav({ tab, user, quota, footer, busy, onSelect }: { tab: Tab; us
 }
 
 // Tài khoản thành viên đang đăng nhập: tên, lượt đã dùng trong tháng và nút đăng xuất.
-function AccountBox({ user, quota }: { user: SessionUser | null; quota: QuotaSummary | null }) {
-  // Khách chưa đăng nhập: mời tạo tài khoản (để có hạn mức riêng và lưu lịch sử).
+function AccountBox({ user, quota, trial }: { user: SessionUser | null; quota: QuotaSummary | null; trial: TrialInfo | null }) {
+  // Khách chưa đăng nhập: số lượt dùng thử còn lại + mời tạo tài khoản.
   if (!user || !quota)
     return (
       <div className="rounded-2xl bg-white/60 p-3">
         <p className="text-[13px] font-semibold">Bạn đang dùng không cần tài khoản</p>
-        <p className="mt-0.5 text-[11.5px] leading-snug text-taupe">Tạo tài khoản miễn phí để có lượt tạo riêng mỗi tháng.</p>
+        {trial && (
+          <p className={`mt-1.5 rounded-xl px-2.5 py-1.5 text-[11.5px] ${trial.used >= trial.limit ? "bg-rosegold/10 text-rosegold" : "bg-gold/10 text-taupe"}`}>
+            Còn <b className="text-ink">{Math.max(0, trial.limit - trial.used)}/{trial.limit}</b> lượt tạo ảnh, video miễn phí
+          </p>
+        )}
+        <p className="mt-1.5 text-[11.5px] leading-snug text-taupe">Tạo tài khoản miễn phí để có lượt tạo riêng mỗi tháng.</p>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Link href="/login" className="flex h-9 items-center justify-center rounded-full border border-line bg-cream text-[12.5px] active:scale-95">
             Đăng nhập
@@ -1499,3 +1525,39 @@ const IconSparkle = ({ className }: { className?: string }) => (
     <path d="M19 14c.2 2.2 1.1 3.1 3.3 3.3-2.2.2-3.1 1.1-3.3 3.3-.2-2.2-1.1-3.1-3.3-3.3 2.2-.2 3.1-1.1 3.3-3.3z" opacity=".6" />
   </svg>
 );
+
+const trialOutMessage = (limit: number) =>
+  limit > 0
+    ? `Bạn đã dùng hết ${limit} lượt tạo miễn phí. Tạo tài khoản miễn phí (chỉ mất 30 giây) để dùng tiếp.`
+    : "Vui lòng tạo tài khoản miễn phí hoặc đăng nhập để tạo ảnh và video.";
+
+// Khách chưa đăng nhập hết lượt dùng thử: mời tạo tài khoản hoặc đăng nhập.
+function AccountPrompt({ message, onClose }: { message: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 backdrop-blur-sm sm:items-center" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-labelledby="account-prompt-title" className="fade-up w-full max-w-sm rounded-3xl bg-cream p-6 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-gold/15 text-gold">
+          <IconSparkle className="h-6 w-6" />
+        </span>
+        <h2 id="account-prompt-title" className="mt-3 font-serif text-[24px] leading-tight">Tạo tài khoản để dùng tiếp</h2>
+        <p className="mt-2 text-[13.5px] leading-relaxed text-taupe">{message}</p>
+        <div className="mt-5 grid gap-2">
+          <Link href="/register" className="gold-btn flex h-11 items-center justify-center rounded-full text-[14px] font-medium text-cream active:scale-[0.98]">
+            Tạo tài khoản miễn phí
+          </Link>
+          <Link href="/login" className="flex h-11 items-center justify-center rounded-full border border-line bg-white/70 text-[14px] active:scale-[0.98]">
+            Tôi đã có tài khoản
+          </Link>
+          <button type="button" onClick={onClose} className="mt-1 text-[12.5px] text-taupe underline-offset-4 hover:underline">
+            Để sau
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

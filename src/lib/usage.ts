@@ -3,7 +3,8 @@ import { db, type UserRow } from "./auth/db";
 import { isGuest } from "./auth/guest";
 import type { SessionUser } from "./auth/session";
 import { DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL, IMAGE_MODEL_OPTIONS, USD_TO_EUR, VIDEO_MODEL_OPTIONS } from "./presets";
-import { getDefaultQuotas, type Credit } from "./settings";
+import { getDefaultQuotas, getGuestTrial, type Credit } from "./settings";
+import { getVisitor, type Visitor } from "./auth/visitor";
 
 // Lượt tạo ảnh / video của từng tài khoản: để thống kê chi phí và giới hạn theo tháng.
 // Chi phí là ước tính theo bảng giá model (presets.ts), không phải hoá đơn thật của Google.
@@ -54,13 +55,44 @@ export function quotaSummary(user: SessionUser): QuotaSummary {
   };
 }
 
+/* ---------- Lượt dùng thử của khách chưa đăng nhập ---------- */
+
+const TRIAL_IP_FACTOR = 3;
+const TRIAL_IP_WINDOW = 30 * 86_400_000;
+
+export type TrialInfo = { used: number; limit: number };
+
+// Số lượt (ảnh + video) khách này đã dùng: theo mã trình duyệt, và theo IP trong 30 ngày.
+export function guestTrial(visitor: Visitor | null): TrialInfo {
+  const limit = getGuestTrial();
+  if (!visitor) return { used: 0, limit };
+  const d = db();
+  const byVisitor = (d.prepare("SELECT COUNT(*) AS n FROM usage WHERE visitor = ?").get(visitor.key) as { n: number }).n;
+  const byIp = (d.prepare("SELECT COUNT(*) AS n FROM usage WHERE ip = ? AND created_at >= ?").get(visitor.ip, Date.now() - TRIAL_IP_WINDOW) as { n: number }).n;
+  // Quá ngưỡng theo IP thì coi như đã hết lượt thử.
+  return { used: byIp >= limit * TRIAL_IP_FACTOR ? limit : Math.min(limit, byVisitor), limit };
+}
+
+export const trialMessage = (limit: number) =>
+  limit > 0
+    ? `Bạn đã dùng hết ${limit} lượt tạo miễn phí. Tạo tài khoản miễn phí (chỉ mất 30 giây) để dùng tiếp.`
+    : "Vui lòng tạo tài khoản miễn phí hoặc đăng nhập để tạo ảnh và video.";
+
 // Giữ chỗ 1 lượt trước khi gọi AI (chặn gửi dồn nhiều yêu cầu cùng lúc để vượt hạn mức).
 // Tạo lỗi thì trả lại lượt (release); thành công thì cập nhật model thực tế (finalize).
-export function reserve(user: SessionUser, kind: Kind, model?: string): { id: number } | { error: string } {
+// Khách chưa đăng nhập (visitor) còn bị giới hạn lượt dùng thử; hết thì needAccount = true.
+export function reserve(user: SessionUser, kind: Kind, model?: string, visitor?: Visitor): { id: number } | { error: string; needAccount?: boolean } {
   const m = model ?? DEFAULT_MODEL[kind];
   const d = db();
   d.exec("BEGIN IMMEDIATE");
   try {
+    if (visitor && isGuest(user)) {
+      const trial = guestTrial(visitor);
+      if (trial.used >= trial.limit) {
+        d.exec("ROLLBACK");
+        return { error: trialMessage(trial.limit), needAccount: true };
+      }
+    }
     const limit = limitsFor(userRow(user.id))[kind];
     const used = usedSince(user.id, kind, monthStart());
     if (limit !== null && used >= limit) {
@@ -73,8 +105,8 @@ export function reserve(user: SessionUser, kind: Kind, model?: string): { id: nu
       };
     }
     const r = d
-      .prepare("INSERT INTO usage (user_id, kind, model, cost_vnd, cost_usd, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-      .run(user.id, kind, m, priceOf(kind, m), usdOf(kind, m), Date.now());
+      .prepare("INSERT INTO usage (user_id, kind, model, cost_vnd, cost_usd, created_at, visitor, ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(user.id, kind, m, priceOf(kind, m), usdOf(kind, m), Date.now(), visitor?.key ?? null, visitor?.ip ?? null);
     d.exec("COMMIT");
     return { id: Number(r.lastInsertRowid) };
   } catch (e) {
@@ -111,3 +143,12 @@ export function totalCostSince(since: number) {
 export function release(id: number) {
   db().prepare("DELETE FROM usage WHERE id = ?").run(id);
 }
+
+// Dùng trong API: khách chưa đăng nhập thì lấy mã trình duyệt (tạo cookie nếu chưa có) rồi giữ lượt.
+export async function reserveSlot(user: SessionUser, kind: Kind, model?: string) {
+  const visitor = isGuest(user) ? await getVisitor() : undefined;
+  return { slot: reserve(user, kind, model, visitor), visitor };
+}
+
+// Hạn mức trả kèm mỗi lần tạo: thành viên xem lượt tháng này, khách xem lượt dùng thử còn lại.
+export const usageInfo = (user: SessionUser, visitor?: Visitor) => ({ quota: quotaSummary(user), ...(visitor && { trial: guestTrial(visitor) }) });

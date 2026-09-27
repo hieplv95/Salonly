@@ -5,13 +5,15 @@ import { F, HEART, mix, star, useSvgText } from "../design/svg-kit";
 import { LogoIcon } from "../logo/LogoSvg";
 import { Veins, hash, isDark } from "../price/PriceSvg";
 import { CardElementLayer } from "./CardElementLayer";
+import { isTrendCardStyle } from "@/lib/card-templates";
+import { trendCardLayers } from "./CardTrendSvg";
 
 // Mã QR hỗ trợ cả chữ có dấu.
 qrcode.stringToBytes = (s: string) => [...new TextEncoder().encode(s)];
 
-type Box = { x: number; y: number; w: number; h: number };
+export type Box = { x: number; y: number; w: number; h: number };
 
-type StampOpts = {
+export type StampOpts = {
   shape: "circle" | "heart" | "dotted" | "square" | "nail";
   fill: string;
   stroke: string;
@@ -194,6 +196,9 @@ export function CardSvg({
   /* ----- Các mẫu ----- */
   const L: ReactNode[] = [];
   const back = side === "back";
+
+  // Bộ 20 mẫu xu hướng vẽ riêng (CardTrendSvg), dùng chung lưới ô, mã QR và lớp kéo thả.
+  if (isTrendCardStyle(design.style)) L.push(...trendCardLayers({ design, back, W, H, C, uid, count, offer, initials, T, key, stamps }));
 
   switch (design.style) {
     case "qrsplit": {

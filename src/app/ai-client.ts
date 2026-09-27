@@ -11,6 +11,17 @@ export async function fileToDataUrl(file: File, maxSide = 1536): Promise<string>
   return canvas.toDataURL("image/jpeg", 0.92);
 }
 
+// Lỗi từ API; needAccount = khách chưa đăng nhập đã hết lượt dùng thử, cần tạo tài khoản.
+export class ApiError extends Error {
+  needAccount: boolean;
+  data: Record<string, unknown>;
+  constructor(message: string, data: Record<string, unknown> = {}) {
+    super(message);
+    this.needAccount = data.needAccount === true;
+    this.data = data;
+  }
+}
+
 export async function postJson(url: string, body: unknown) {
   const res = await fetch(url, {
     method: "POST",
@@ -18,7 +29,7 @@ export async function postJson(url: string, body: unknown) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Có lỗi xảy ra");
+  if (!res.ok) throw new ApiError(data.error || "Có lỗi xảy ra", data);
   return data;
 }
 

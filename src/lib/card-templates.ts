@@ -1,6 +1,14 @@
 // Dữ liệu cho tab Thẻ tích điểm: khổ danh thiếp 3,5×2 inch (ngang/dọc), nội dung mẫu.
 
-export type CardStyle = "minimal" | "signature" | "insta" | "welcome" | "vip" | "marble" | "hearts" | "nude" | "sage" | "boho" | "lineart" | "platinum" | "noirscript" | "editorial" | "heritage" | "skinstudio" | "burgundy" | "midnight" | "clay" | "qrsplit" | "inkline" | "champagne" | "ribbon" | "obsidian" | "botanical" | "rosechip" | "bowlocked";
+export type CardStyle = "minimal" | "signature" | "insta" | "welcome" | "vip" | "marble" | "hearts" | "nude" | "sage" | "boho" | "lineart" | "platinum" | "noirscript" | "editorial" | "heritage" | "skinstudio" | "burgundy" | "midnight" | "clay" | "qrsplit" | "inkline" | "champagne" | "ribbon" | "obsidian" | "botanical" | "rosechip" | "bowlocked" | TrendCardStyle;
+
+// Bộ 20 mẫu thẻ theo xu hướng 2025–2026 (vẽ trong CardTrendSvg).
+export const TREND_CARD_STYLES = [
+  "jelly-nails", "french-tip", "milk-bath", "bento-grid", "mesh-gradient", "matcha-latte", "strawberry-milk", "tennis-club", "retro-diner", "bauhaus-blocks", "terrazzo", "puffy-bubble", "zen-enso", "disco-ball", "butterfly-y2k", "lace-doily", "sticker-bomb", "sunset-stripes", "polish-swatch", "beauty-passport",
+] as const;
+export type TrendCardStyle = (typeof TREND_CARD_STYLES)[number];
+export const isTrendCardStyle = (style: string): style is TrendCardStyle =>
+  (TREND_CARD_STYLES as readonly string[]).includes(style);
 export type CardOrientation = "landscape" | "portrait";
 
 // Khung vẽ 300 điểm/inch; tải về ×2 = 600dpi để in thật nét.
@@ -124,14 +132,14 @@ export type CardTemplate = { id: string; title: string; isNew?: boolean } & Pick
 
 export const CARD_TEMPLATES: CardTemplate[] = [
   { id: "minimal-white", title: "Tối giản trắng", style: "minimal", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#FFFFFF", ink: "#1F1F1F", accent: "#1F1F1F" } },
-  { id: "qr-split", title: "Mã QR chia đôi", isNew: true, style: "qrsplit", orientation: "landscape", sides: 2, stamps: 9, midAt: 0, colors: { bg: "#E1E0D9", ink: "#292926", accent: "#82836A" } },
-  { id: "inkline-card", title: "Chữ tay đen trắng", isNew: true, style: "inkline", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#FFFFFF", ink: "#1D1D1D", accent: "#1D1D1D" } },
-  { id: "champagne-foil", title: "Champagne ánh kim", isNew: true, style: "champagne", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#E8E1D3", ink: "#786F63", accent: "#B5A183" } },
-  { id: "ribbon-tribe", title: "Nơ và sọc be", isNew: true, style: "ribbon", orientation: "landscape", sides: 2, stamps: 6, midAt: 0, colors: { bg: "#FAF7F2", ink: "#594638", accent: "#D7CEC3" } },
-  { id: "obsidian-freebies", title: "Đen tối giản", isNew: true, style: "obsidian", orientation: "landscape", sides: 2, stamps: 10, midAt: 5, colors: { bg: "#090909", ink: "#FFFFFF", accent: "#D5D5D5" } },
-  { id: "botanical-ink", title: "Lá mảnh cổ điển", isNew: true, style: "botanical", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#FFFFFF", ink: "#242824", accent: "#728270" } },
-  { id: "rose-chip", title: "Thẻ hồng ánh vàng", isNew: true, style: "rosechip", orientation: "landscape", sides: 2, stamps: 10, midAt: 5, colors: { bg: "#F3EAE7", ink: "#342F2E", accent: "#C6A663" } },
-  { id: "bow-locked", title: "Nơ hội thân thiết", isNew: true, style: "bowlocked", orientation: "landscape", sides: 2, stamps: 6, midAt: 3, colors: { bg: "#FEFDFC", ink: "#303033", accent: "#DAD8D8" } },
+  { id: "qr-split", title: "Mã QR chia đôi", style: "qrsplit", orientation: "landscape", sides: 2, stamps: 9, midAt: 0, colors: { bg: "#E1E0D9", ink: "#292926", accent: "#82836A" } },
+  { id: "inkline-card", title: "Chữ tay đen trắng", style: "inkline", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#FFFFFF", ink: "#1D1D1D", accent: "#1D1D1D" } },
+  { id: "champagne-foil", title: "Champagne ánh kim", style: "champagne", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#E8E1D3", ink: "#786F63", accent: "#B5A183" } },
+  { id: "ribbon-tribe", title: "Nơ và sọc be", style: "ribbon", orientation: "landscape", sides: 2, stamps: 6, midAt: 0, colors: { bg: "#FAF7F2", ink: "#594638", accent: "#D7CEC3" } },
+  { id: "obsidian-freebies", title: "Đen tối giản", style: "obsidian", orientation: "landscape", sides: 2, stamps: 10, midAt: 5, colors: { bg: "#090909", ink: "#FFFFFF", accent: "#D5D5D5" } },
+  { id: "botanical-ink", title: "Lá mảnh cổ điển", style: "botanical", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#FFFFFF", ink: "#242824", accent: "#728270" } },
+  { id: "rose-chip", title: "Thẻ hồng ánh vàng", style: "rosechip", orientation: "landscape", sides: 2, stamps: 10, midAt: 5, colors: { bg: "#F3EAE7", ink: "#342F2E", accent: "#C6A663" } },
+  { id: "bow-locked", title: "Nơ hội thân thiết", style: "bowlocked", orientation: "landscape", sides: 2, stamps: 6, midAt: 3, colors: { bg: "#FEFDFC", ink: "#303033", accent: "#DAD8D8" } },
   { id: "heritage-ivory", title: "Cổ điển viền hoa", style: "heritage", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#F8F6F1", ink: "#4B382C", accent: "#A78B67" } },
   { id: "skin-studio", title: "Studio màu be", style: "skinstudio", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#CFC4B4", ink: "#574C43", accent: "#9B8979" } },
   { id: "burgundy-club", title: "Câu lạc bộ đỏ rượu", style: "burgundy", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#F3E7E4", ink: "#70243A", accent: "#9B3D54" } },
@@ -151,6 +159,27 @@ export const CARD_TEMPLATES: CardTemplate[] = [
   { id: "hearts-blush", title: "Trái tim hồng phấn", style: "hearts", orientation: "landscape", sides: 2, stamps: 8, midAt: 4, colors: { bg: "#FCE9ED", ink: "#7A2E45", accent: "#C0395B" } },
   { id: "nude-nails", title: "Nude bộ móng", style: "nude", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#EADBCB", ink: "#5B4332", accent: "#8A5A44" } },
   { id: "sage-arch", title: "Xanh lá mái vòm", style: "sage", orientation: "portrait", sides: 2, stamps: 9, midAt: 0, colors: { bg: "#E7ECE2", ink: "#3C5244", accent: "#6E8B74" } },
+  // 20 mẫu xu hướng mới (trang sau).
+  { id: "jelly-nails", title: "Thạch jelly bóng", isNew: true, style: "jelly-nails", orientation: "landscape", sides: 2, stamps: 10, midAt: 5, colors: { bg: "#FFE6F0", ink: "#7A1F4B", accent: "#FF5C9A" } },
+  { id: "french-tip", title: "French tip viền trắng", isNew: true, style: "french-tip", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#F4E6DC", ink: "#5A3E36", accent: "#C98F7E" } },
+  { id: "milk-bath", title: "Milk bath hoa nổi", isNew: true, style: "milk-bath", orientation: "portrait", sides: 2, stamps: 9, midAt: 0, colors: { bg: "#F8F5F0", ink: "#5E5A57", accent: "#EFB3C3" } },
+  { id: "bento-grid", title: "Bento ô khối", isNew: true, style: "bento-grid", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#EEECE7", ink: "#1E1E1E", accent: "#FF7A59" } },
+  { id: "mesh-gradient", title: "Loang màu mesh", isNew: true, style: "mesh-gradient", orientation: "landscape", sides: 2, stamps: 10, midAt: 5, colors: { bg: "#6C4DF6", ink: "#FFFFFF", accent: "#FFD1E8" } },
+  { id: "matcha-latte", title: "Matcha latte", isNew: true, style: "matcha-latte", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#E3E7CF", ink: "#3C4A2A", accent: "#8CA35C" } },
+  { id: "strawberry-milk", title: "Sữa dâu", isNew: true, style: "strawberry-milk", orientation: "portrait", sides: 2, stamps: 9, midAt: 0, colors: { bg: "#FFE3EA", ink: "#8B2C45", accent: "#E8476A" } },
+  { id: "tennis-club", title: "Câu lạc bộ tennis", isNew: true, style: "tennis-club", orientation: "landscape", sides: 2, stamps: 10, midAt: 5, colors: { bg: "#F3EFE2", ink: "#1F4D3A", accent: "#C9A74F" } },
+  { id: "retro-diner", title: "Diner retro Mỹ", isNew: true, style: "retro-diner", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#FFF5E1", ink: "#C8102E", accent: "#1FA39A" } },
+  { id: "bauhaus-blocks", title: "Khối màu Bauhaus", isNew: true, style: "bauhaus-blocks", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#F7F1E5", ink: "#1B1B3A", accent: "#FF6B35" } },
+  { id: "terrazzo", title: "Đá terrazzo", isNew: true, style: "terrazzo", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#F2EDE6", ink: "#333333", accent: "#E07A5F" } },
+  { id: "puffy-bubble", title: "Chữ phồng 3D", isNew: true, style: "puffy-bubble", orientation: "landscape", sides: 2, stamps: 10, midAt: 5, colors: { bg: "#CFE6FF", ink: "#1C3D7A", accent: "#FF8FC7" } },
+  { id: "zen-enso", title: "Thiền ensō", isNew: true, style: "zen-enso", orientation: "portrait", sides: 2, stamps: 9, midAt: 0, colors: { bg: "#F1ECE2", ink: "#2A2A2A", accent: "#B5402F" } },
+  { id: "disco-ball", title: "Quả cầu disco", isNew: true, style: "disco-ball", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#1B1426", ink: "#F7F2FF", accent: "#D9DEEA" } },
+  { id: "butterfly-y2k", title: "Bướm Y2K", isNew: true, style: "butterfly-y2k", orientation: "landscape", sides: 2, stamps: 10, midAt: 5, colors: { bg: "#EEE5FF", ink: "#4B2E83", accent: "#B08CFF" } },
+  { id: "lace-doily", title: "Ren doily cổ điển", isNew: true, style: "lace-doily", orientation: "portrait", sides: 2, stamps: 9, midAt: 0, colors: { bg: "#F7EAE6", ink: "#6B4040", accent: "#D8A39D" } },
+  { id: "sticker-bomb", title: "Sticker vui nhộn", isNew: true, style: "sticker-bomb", orientation: "landscape", sides: 2, stamps: 10, midAt: 5, colors: { bg: "#FFF4E6", ink: "#222222", accent: "#FF4F8B" } },
+  { id: "sunset-stripes", title: "Hoàng hôn retro", isNew: true, style: "sunset-stripes", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#FFE9D6", ink: "#6B2C1A", accent: "#F26B3A" } },
+  { id: "polish-swatch", title: "Bảng màu sơn", isNew: true, style: "polish-swatch", orientation: "landscape", sides: 2, stamps: 10, midAt: 0, colors: { bg: "#FFFFFF", ink: "#2A2A2A", accent: "#D6336C" } },
+  { id: "beauty-passport", title: "Hộ chiếu làm đẹp", isNew: true, style: "beauty-passport", orientation: "portrait", sides: 2, stamps: 9, midAt: 0, colors: { bg: "#1E3557", ink: "#E7D3A0", accent: "#B8402F" } },
 ];
 
 export const CARD_CONTENT = {

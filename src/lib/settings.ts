@@ -85,6 +85,17 @@ export const setSeo = (s: SiteSeo) => setSetting("site_seo", JSON.stringify(s));
 export const getRequireLogin = () => getSetting("require_login") === "1";
 export const setRequireLogin = (on: boolean) => setSetting("require_login", on ? "1" : "0");
 
+/* ---------- Lượt dùng thử của khách chưa đăng nhập ----------
+ * Mỗi khách (mỗi trình duyệt) được tạo tối đa N ảnh + video cộng lại, hết thì phải tạo tài khoản.
+ * Theo IP (đã băm) được gấp 3 lần trong 30 ngày, vì nhiều người dùng 4G có thể chung 1 IP. */
+
+export const DEFAULT_GUEST_TRIAL = 5;
+export function getGuestTrial() {
+  const v = getSetting("guest_trial");
+  return v === null ? DEFAULT_GUEST_TRIAL : Math.max(0, Math.floor(Number(v)) || 0);
+}
+export const setGuestTrial = (n: number) => setSetting("guest_trial", String(Math.max(0, Math.min(1000, Math.floor(n)))));
+
 /* ---------- Hạn mức mặc định cho thành viên (lượt / tháng; null = không giới hạn) ---------- */
 
 export type Quotas = { image: number | null; video: number | null };

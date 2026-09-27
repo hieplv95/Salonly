@@ -1,8 +1,8 @@
 import { guestCustomer } from "@/lib/admin-stats";
 import { getGuestUser } from "@/lib/auth/guest";
-import { getDefaultQuotas, getRequireLogin } from "@/lib/settings";
+import { getDefaultQuotas, getGuestTrial, getRequireLogin } from "@/lib/settings";
 import { db } from "@/lib/auth/db";
-import { requireLoginAction, setUserQuota } from "../actions";
+import { requireLoginAction, saveGuestTrialAction, setUserQuota } from "../actions";
 import { usedOf, vnd } from "../format";
 
 const input = "h-10 w-full rounded-2xl border border-line bg-white/80 px-3 text-[14px] outline-none focus:border-gold";
@@ -14,6 +14,7 @@ export function AccessCard() {
   const stats = guestCustomer();
   const quota = db().prepare("SELECT image_quota, video_quota FROM users WHERE id = ?").get(guest.id) as { image_quota: number | null; video_quota: number | null };
   const d = getDefaultQuotas();
+  const trial = getGuestTrial();
 
   return (
     <section className="rounded-3xl border border-line bg-cream/90 p-5 sm:p-6">
@@ -34,6 +35,14 @@ export function AccessCard() {
         <p className="mt-0.5 text-[11.5px] leading-snug text-taupe">
           Khi tắt đăng nhập, mọi lượt tạo của người chưa có tài khoản tính chung vào đây. Nên đặt hạn mức để người lạ không dùng hết credit Google Cloud.
         </p>
+        <form action={saveGuestTrialAction} className="mt-3 grid grid-cols-[1fr_auto] items-end gap-2">
+          <label className="text-[11.5px]">
+            <span className="mb-1 block text-taupe">Lượt dùng thử cho mỗi khách (ảnh + video)</span>
+            <input name="trial" type="number" min={0} max={1000} defaultValue={trial} className={input} />
+          </label>
+          <button className="h-10 rounded-full border border-line bg-white/80 px-4 text-[13px] active:scale-95">Lưu</button>
+        </form>
+        <p className="mt-1 text-[11px] text-taupe">Hết lượt, khách được mời tạo tài khoản. Nhập 0 = phải tạo tài khoản mới dùng được.</p>
         {stats && (
           <p className="mt-2 text-[12px]">
             Tháng này: <b>{usedOf(stats.imgMonth, stats.limits.image)}</b> ảnh · <b>{usedOf(stats.vidMonth, stats.limits.video)}</b> video · {vnd(stats.costMonth)}

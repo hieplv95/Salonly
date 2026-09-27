@@ -1,6 +1,6 @@
 import { apiMember } from "@/lib/auth/session";
 import { cleanImageModel, friendlyError, isDemo, parseDataUrl, removeBackground } from "@/lib/gemini";
-import { finalize, quotaSummary, release, reserve } from "@/lib/usage";
+import { finalize, release, reserveSlot, usageInfo } from "@/lib/usage";
 
 export const maxDuration = 120;
 
@@ -10,8 +10,8 @@ export async function POST(req: Request) {
   if (denied) return denied;
   const { image, model } = await req.json();
   const chosen = cleanImageModel(model);
-  const slot = isDemo() ? null : reserve(user, "image", chosen);
-  if (slot && "error" in slot) return Response.json({ error: slot.error, quota: quotaSummary(user) }, { status: 429 });
+  const { slot, visitor } = isDemo() ? { slot: null, visitor: undefined } : await reserveSlot(user, "image", chosen);
+  if (slot && "error" in slot) return Response.json({ error: slot.error, needAccount: slot.needAccount, ...usageInfo(user, visitor) }, { status: 429 });
   try {
     const out = await removeBackground(parseDataUrl(image), chosen);
     if (slot) finalize(slot.id, "image", out.model, out.source);
