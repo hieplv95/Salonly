@@ -215,7 +215,8 @@ export function Studio({ user, quota: initialQuota, trial: initialTrial, footer 
     setImageOrder([]);
     setVideoOrder([]);
     setSource("original");
-    setTab("photos");
+    // Đang ở tab Video thì ở lại để tạo video luôn; các tab khác về tab Ảnh.
+    setTab((t) => (t === "videos" ? "videos" : "photos"));
     mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -375,7 +376,7 @@ export function Studio({ user, quota: initialQuota, trial: initialTrial, footer 
             <CaptionStudio editor={caption} />
           ) : !original ? (
             <div className="mx-auto max-w-xl">
-              <Landing isPhotos={isPhotos} note={note} onNote={changeNote} onPick={onPick} onDrop={handleFile} />
+              <Landing isPhotos={isPhotos} note={isPhotos ? note : videoNote} onNote={isPhotos ? changeNote : changeVideoNote} onPick={onPick} onDrop={handleFile} />
             </div>
           ) : (
             <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-8 lg:space-y-0">
@@ -709,7 +710,18 @@ function Landing({
       </button>
 
       <Panel>
-        <NoteInput value={note} onChange={onNote} />
+        {isPhotos ? (
+          <NoteInput value={note} onChange={onNote} />
+        ) : (
+          <NoteInput
+            id="video-note"
+            label="Mô tả video bạn muốn"
+            placeholder="VD: tay cầm ly trà sữa, cánh hoa rơi nhẹ…"
+            suggestions={VIDEO_NOTE_SUGGESTIONS}
+            value={note}
+            onChange={onNote}
+          />
+        )}
       </Panel>
 
       <ul className="grid grid-cols-3 gap-2 text-center">
