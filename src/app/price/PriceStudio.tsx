@@ -26,6 +26,7 @@ import { DesignerPanel } from "../design/DesignerPanel";
 import { useCanvasDraft } from "../design/useCanvasDraft";
 import { PriceCoverSvg } from "./PriceCoverSvg";
 import { PriceSvg } from "./PriceSvg";
+import { scrollToEl } from "../scroll";
 
 const STORAGE_KEY = "naile-price-design";
 const PER_PAGE = 10;
@@ -160,7 +161,7 @@ export function PriceStudio({ editor, gallery }: { editor: PriceEditor; gallery?
   const galleryRef = useRef<HTMLElement>(null);
   const goPage = (p: number) => {
     setPage(p);
-    galleryRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    scrollToEl(galleryRef.current);
   };
 
   return (

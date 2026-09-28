@@ -11,6 +11,7 @@ import type { EditorConfig } from "../card/CanvasEditor";
 import { useCanvasDraft } from "../design/useCanvasDraft";
 import { FlyerSvg } from "./FlyerSvg";
 import { FlyerFrontSvg } from "./FlyerFrontSvg";
+import { scrollToEl } from "../scroll";
 
 const STORAGE_KEY = "naile-flyer-design";
 const PAGE_SIZE = 10;
@@ -96,7 +97,7 @@ export function FlyerStudio({ editor, gallery }: { editor: FlyerEditor; gallery?
   const pages = Math.ceil(FLYER_TEMPLATES.length / PAGE_SIZE);
   const changePage = (next: number) => {
     setPage(next);
-    galleryRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    scrollToEl(galleryRef.current);
   };
 
   const field = (key: Exclude<(typeof CONTENT_KEYS)[number], "discount">, label: string, maxLength: number, hint?: string) => <>

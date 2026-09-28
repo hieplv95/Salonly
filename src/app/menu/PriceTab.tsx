@@ -14,6 +14,7 @@ import { PriceCoverSvg } from "../price/PriceCoverSvg";
 import { PriceFooter, PriceStudio, usePriceEditor } from "../price/PriceStudio";
 import { PriceSvg } from "../price/PriceSvg";
 import { MenuSvg } from "./MenuSvg";
+import { scrollToEl } from "../scroll";
 
 // Tab Bảng giá: 20 menu 2 mặt (mặt trước nhận diện tiệm, mặt sau bảng giá) ở trang đầu, sau đó 30 mẫu bảng giá cũ.
 
@@ -177,7 +178,7 @@ function PriceGallery({ tab }: { tab: PriceTab }) {
   const menuPage = page * PAGE_SIZE < MENU_TEMPLATES.length;
   const goPage = (p: number) => {
     setPage(p);
-    ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    scrollToEl(ref.current);
   };
   return (
     <section ref={ref} className="scroll-mt-4">

@@ -20,6 +20,7 @@ import type { EditorConfig } from "../card/CanvasEditor";
 import { CanvasSvg } from "../card/CanvasSvg";
 import { DesignerPanel } from "../design/DesignerPanel";
 import { useCanvasDraft } from "../design/useCanvasDraft";
+import { scrollToEl } from "../scroll";
 
 const STORAGE_KEY = "naile-voucher-design";
 const PER_PAGE = 10;
@@ -127,7 +128,7 @@ export function VoucherStudio({ editor }: { editor: VoucherEditor }) {
   const galleryRef = useRef<HTMLDivElement>(null);
   const goPage = (p: number) => {
     setPage(p);
-    galleryRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    scrollToEl(galleryRef.current);
   };
 
   const field = (key: (typeof CONTENT_KEYS)[number], label: string, placeholder: string, hint?: string, max = 40) => (

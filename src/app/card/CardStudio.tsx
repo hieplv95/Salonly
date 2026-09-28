@@ -25,6 +25,7 @@ import { CardSvg, autoOffer } from "./CardSvg";
 import { CanvasEditor } from "./CanvasEditor";
 import { CanvasSvg } from "./CanvasSvg";
 import { canvasDraft, captureCardDocument, type CanvasDocument } from "./canvas-model";
+import { scrollToEl } from "../scroll";
 
 const STORAGE_KEY = "naile-card-design";
 const BACK_DRAFTS_KEY = "naile-card-back-drafts";
@@ -290,7 +291,7 @@ function CardForm({ editor, launch }: { editor: CardEditor; launch: React.ReactN
   const backCopyRef = useRef<HTMLDivElement>(null);
   const goPage = (p: number) => {
     setPage(p);
-    galleryRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    scrollToEl(galleryRef.current);
   };
   const portrait = design.orientation === "portrait";
   const two = design.sides === 2;
@@ -435,7 +436,7 @@ function CardForm({ editor, launch }: { editor: CardEditor; launch: React.ReactN
         </p>
         <p className="mt-1 px-1 text-center text-[11px] text-taupe">Chạm vào chữ, hình, mã QR hoặc từng ô tích điểm để kéo thả.</p>
         <div className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-1 text-xs font-semibold text-gold">
-          {backCopyFields && <button type="button" onClick={() => backCopyRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })} className="underline underline-offset-4">Sửa chữ mặt sau ↓</button>}
+          {backCopyFields && <button type="button" onClick={() => scrollToEl(backCopyRef.current)} className="underline underline-offset-4">Sửa chữ mặt sau ↓</button>}
           <button type="button" onClick={() => goPage(NEW_PAGE)} className="underline underline-offset-4">
             Xem {CARD_TEMPLATES.filter((t) => t.isNew).length} mẫu mới ↓
           </button>
@@ -527,7 +528,7 @@ function CardForm({ editor, launch }: { editor: CardEditor; launch: React.ReactN
             </button>
             <button type="button" onClick={() => addElement("text")} disabled={design.elements.length >= 24} className="rounded-2xl border border-line bg-white/70 px-3 py-3 text-sm font-semibold active:scale-[0.98] disabled:opacity-40">＋ Thêm dòng chữ</button>
           </div>
-          <button type="button" onClick={() => previewRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })} className="mt-2 px-1 text-xs font-semibold text-gold underline underline-offset-4">Xem và kéo trên thẻ ↑</button>
+          <button type="button" onClick={() => scrollToEl(previewRef.current)} className="mt-2 px-1 text-xs font-semibold text-gold underline underline-offset-4">Xem và kéo trên thẻ ↑</button>
           {design.elements.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">
             {design.elements.map((element, index) => <button key={element.id} type="button" onClick={() => { setSelectedId(element.id); setSelectedLayer(null); setEditSide(element.side); }} aria-pressed={selectedId === element.id} className={`${chip(selectedId === element.id)} max-w-full truncate px-3 py-1.5 text-xs`}>
               {element.kind === "instagram" ? "◎" : "T"} {element.text || `Mục ${index + 1}`} · {element.side === "front" ? "trước" : "sau"}

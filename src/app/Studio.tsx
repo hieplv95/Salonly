@@ -351,7 +351,7 @@ export function Studio({ user, quota: initialQuota, trial: initialTrial, footer 
 
       {/* Khung app: header – body – footer dùng chung một nền, một bề rộng */}
       {/* Điện thoại: khung một cột. Máy tính: menu cố định bên trái + nội dung toàn màn hình. */}
-      <div className="app-shell relative flex h-dvh w-full overflow-hidden">
+      <div className="app-shell relative flex h-dvh w-full overflow-clip">
         <DesktopNav tab={tab} user={user} quota={quota} trial={trial} footer={footer} busy={{ photos: imagesBusy, videos: videoBusy }} onSelect={selectTab} />
         <div className="relative flex min-w-0 flex-1 flex-col">
         {/* Header */}

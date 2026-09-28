@@ -14,6 +14,7 @@ import { useCanvasDraft } from "../design/useCanvasDraft";
 import { FlyerFooter, FlyerStudio, useFlyerEditor } from "./FlyerStudio";
 import { FlyerFrontSvg } from "./FlyerFrontSvg";
 import { PromoFlyerSvg } from "./PromoFlyerSvg";
+import { scrollToEl } from "../scroll";
 
 // Tab Tờ rơi: 20 mẫu quảng cáo (mặt trước khuyến mãi, mặt sau bảng giá) ở trang đầu, sau đó 20 mẫu khai trương 2 mặt.
 
@@ -143,7 +144,7 @@ function FlyerGallery({ tab }: { tab: FlyerTab }) {
   const pages = Math.ceil(ITEMS.length / PAGE_SIZE);
   const goPage = (p: number) => {
     setPage(p);
-    ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    scrollToEl(ref.current);
   };
   const promoPage = page * PAGE_SIZE < PROMO_TEMPLATES.length;
   return (
