@@ -40,6 +40,9 @@ export function useBackClose(open: boolean, onClose: () => void) {
     if (!open) return;
     if (!listening) {
       window.addEventListener("popstate", onPop);
+      // Các bước lịch sử này chỉ là lớp phủ, không phải trang mới: không để trình duyệt tự
+      // khôi phục vị trí cuộn khi lùi (Safari có thể đẩy cả trang lệch xuống và kẹt lại).
+      history.scrollRestoration = "manual";
       listening = true;
     }
     const entry: Entry = { close: () => latest.current() };

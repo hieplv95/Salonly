@@ -106,6 +106,28 @@ export function Studio({ user, quota: initialQuota, trial: initialTrial, footer 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRev, setHistoryRev] = useState(0);
 
+  // Studio chỉ cuộn phần nội dung giữa; cả trang (window) phải luôn ở vị trí trên cùng.
+  // iPhone đẩy cả trang lên khi mở bàn phím và không kéo về khi tắt → thanh trên cùng (menu)
+  // bị kẹt khuất. Không có ô nào đang gõ thì đưa trang về lại vị trí 0.
+  useEffect(() => {
+    const typing = () => {
+      const el = document.activeElement as HTMLElement | null;
+      return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    };
+    const pin = () => {
+      if ((window.scrollY || document.documentElement.scrollTop) !== 0 && !typing()) window.scrollTo(0, 0);
+    };
+    const later = () => setTimeout(pin, 80);
+    window.addEventListener("scroll", pin, { passive: true });
+    document.addEventListener("focusout", later);
+    window.visualViewport?.addEventListener("resize", later);
+    return () => {
+      window.removeEventListener("scroll", pin);
+      document.removeEventListener("focusout", later);
+      window.visualViewport?.removeEventListener("resize", later);
+    };
+  }, []);
+
   const [demo, setDemo] = useState(false);
   const [now, setNow] = useState(0);
   // note: đang gõ; appliedNote: mô tả đã dùng cho bộ ảnh hiện tại.
