@@ -31,7 +31,8 @@ import {
   type Preset,
 } from "@/lib/presets";
 import { shareOrDownload } from "@/lib/share";
-import { ApiError, errMsg, fileToDataUrl, postJson } from "./ai-client";
+import { ApiError, errMsg, fileToDataUrl, postJson, urlToDataUrl } from "./ai-client";
+import { useBackClose } from "./use-back-close";
 import { LogoFooter, LogoStudio, useLogoEditor } from "./logo/LogoStudio";
 import { LOGO_TEMPLATES } from "@/lib/logo-templates";
 import { PriceTabFooter, PriceTabStudio, usePriceTab } from "./menu/PriceTab";
@@ -55,7 +56,7 @@ type Job =
   | { status: "error"; error: string };
 
 type Tab = "photos" | "videos" | "caption" | "logo" | "price" | "card" | "voucher" | "flyer" | "stamp";
-type Viewer = { kind: "image" | "video"; url: string; name: string; styleId?: string };
+type Viewer = { kind: "image" | "video"; url: string; name: string; styleId?: string; historyId?: string };
 
 const POLL_MS = 8000;
 
@@ -101,6 +102,10 @@ export function Studio({ user, quota: initialQuota, trial: initialTrial, footer 
   const [tab, setTab] = useState<Tab>("photos");
   const [menuOpen, setMenuOpen] = useState(false);
   const [viewer, setViewer] = useState<Viewer | null>(null);
+  // Lịch sử ảnh đã tạo (lưu trên máy chủ); historyRev tăng khi có ảnh mới để bảng lịch sử tải lại.
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyRev, setHistoryRev] = useState(0);
+
   const [demo, setDemo] = useState(false);
   const [now, setNow] = useState(0);
   // note: đang gõ; appliedNote: mô tả đã dùng cho bộ ảnh hiện tại.
@@ -160,6 +165,7 @@ export function Studio({ user, quota: initialQuota, trial: initialTrial, footer 
       });
       if (data.quota && user) setQuota(data.quota);
       if (data.trial) setTrial(data.trial);
+      if (data.historyId) setHistoryRev((r) => r + 1);
       if (run !== imageRun.current) return;
       setDemo(data.demo);
       setImages((s) => ({ ...s, [styleId]: { status: "done", url: data.image } }));
@@ -345,13 +351,23 @@ export function Studio({ user, quota: initialQuota, trial: initialTrial, footer 
             </div>
             <h1 className="hidden font-serif text-[26px] leading-none lg:block">{MENU_TOOLS.find((m) => m.tab === tab)?.title}</h1>
           </div>
-          {original && !isDesign ? (
-            <button
-              onClick={onPick}
-              className="flex items-center gap-1.5 rounded-full border border-line bg-cream px-3 py-1.5 text-xs font-medium active:scale-95"
-            >
-              <IconSwap /> Đổi ảnh
-            </button>
+          {!isDesign ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setHistoryOpen(true)}
+                className="flex items-center gap-1.5 rounded-full border border-line bg-cream px-3 py-1.5 text-xs font-medium active:scale-95"
+              >
+                <IconHistory /> Lịch sử
+              </button>
+              {original && (
+                <button
+                  onClick={onPick}
+                  className="flex items-center gap-1.5 rounded-full border border-line bg-cream px-3 py-1.5 text-xs font-medium active:scale-95"
+                >
+                  <IconSwap /> Đổi ảnh
+                </button>
+              )}
+            </div>
           ) : (
             <span className="text-[11px] text-taupe lg:hidden">{isLogo ? "Thiết kế logo" : isPrice ? "Bảng giá dịch vụ" : isCard ? "Thẻ tích điểm" : isVoucher ? "Voucher quà tặng" : isFlyer ? "Tờ rơi quảng cáo" : isStamp ? "Con dấu tích điểm" : isCaption ? "Viết caption" : "Ảnh & video"}</span>
           )}
@@ -621,20 +637,50 @@ export function Studio({ user, quota: initialQuota, trial: initialTrial, footer 
 
       {needAccount && <AccountPrompt message={needAccount} onClose={() => setNeedAccount(null)} />}
 
+      {historyOpen && (
+        <HistorySheet
+          rev={historyRev}
+          guest={!user}
+          onClose={() => setHistoryOpen(false)}
+          onOpen={(id) => setViewer({ kind: "image", url: `/api/history/${id}`, name: `salonly-${id}.png`, historyId: id })}
+        />
+      )}
+
       {viewer && (
         <Lightbox
           viewer={viewer}
           isSource={viewer.styleId === source}
           onClose={() => setViewer(null)}
-          onUseForVideo={() => {
+          onUseForVideo={async () => {
+            if (viewer.historyId) {
+              // Ảnh trong lịch sử: dùng làm ảnh gốc rồi sang tab Video.
+              const blob = await fetch(viewer.url).then((r) => r.blob());
+              setViewer(null);
+              setHistoryOpen(false);
+              await handleFile(new File([blob], viewer.name, { type: blob.type }));
+              setTab("videos");
+              return;
+            }
             setSource(viewer.styleId!);
             setViewer(null);
             setTab("videos");
           }}
-          onCaption={() => {
+          onCaption={async () => {
+            const image = viewer.historyId ? await urlToDataUrl(viewer.url) : viewer.url;
             setViewer(null);
-            captionFor(viewer.url);
+            setHistoryOpen(false);
+            captionFor(image);
           }}
+          onDelete={
+            viewer.historyId
+              ? async () => {
+                  if (!confirm("Xoá ảnh này khỏi lịch sử?")) return;
+                  await fetch(`/api/history/${viewer.historyId}`, { method: "DELETE" });
+                  setViewer(null);
+                  setHistoryRev((r) => r + 1);
+                }
+              : undefined
+          }
         />
       )}
     </div>
@@ -1196,13 +1242,16 @@ function Lightbox({
   onClose,
   onUseForVideo,
   onCaption,
+  onDelete,
 }: {
   viewer: Viewer;
   isSource: boolean;
   onClose: () => void;
   onUseForVideo: () => void;
   onCaption: () => void;
+  onDelete?: () => void;
 }) {
+  useBackClose(true, onClose);
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -1215,11 +1264,16 @@ function Lightbox({
   }, [onClose]);
 
   return (
-    <div className="fade-up fixed inset-0 z-50 flex flex-col bg-[#120d0a]">
-      <div className="flex justify-end px-4 pt-[max(1rem,env(safe-area-inset-top))]">
-        <button onClick={onClose} aria-label="Đóng" className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white active:scale-95">
-          <IconClose />
+    <div className="fade-up fixed inset-0 z-[60] flex flex-col bg-[#120d0a]">
+      <div className="flex items-center justify-between gap-2 px-4 pt-[max(1rem,env(safe-area-inset-top))]">
+        <button onClick={onClose} className="flex h-10 items-center gap-1.5 rounded-full bg-white/15 pl-3 pr-4 text-[14px] font-medium text-white active:scale-95">
+          <IconBack /> Quay lại
         </button>
+        {onDelete && (
+          <button onClick={onDelete} aria-label="Xoá khỏi lịch sử" className="grid h-10 w-10 place-items-center rounded-full bg-white/15 text-white active:scale-95">
+            <IconTrash />
+          </button>
+        )}
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-3">
         {viewer.kind === "image" ? (
@@ -1236,7 +1290,7 @@ function Lightbox({
         >
           <IconShare /> Lưu / Chia sẻ
         </button>
-        {viewer.kind === "image" && viewer.styleId && (
+        {viewer.kind === "image" && (viewer.styleId || viewer.historyId) && (
           <button
             onClick={onUseForVideo}
             className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/20 py-3.5 text-sm font-medium text-cream active:scale-[0.98]"
@@ -1330,6 +1384,7 @@ function SideMenu({
   onClose: () => void;
   onSelect: (t: Tab) => void;
 }) {
+  useBackClose(open, onClose);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -1521,6 +1576,22 @@ const IconShare = () => (
     <path d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
   </svg>
 );
+const IconBack = () => (
+  <svg {...iconProps}>
+    <path d="M15 5 8 12l7 7" />
+  </svg>
+);
+const IconHistory = () => (
+  <svg {...iconProps} width={15} height={15}>
+    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+    <path d="M3 3v5h5M12 7v5l3 2" />
+  </svg>
+);
+const IconTrash = () => (
+  <svg {...iconProps}>
+    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+  </svg>
+);
 const IconClose = () => (
   <svg {...iconProps}>
     <path d="M6 6l12 12M18 6 6 18" />
@@ -1545,6 +1616,7 @@ const trialOutMessage = (limit: number) =>
 
 // Khách chưa đăng nhập hết lượt dùng thử: mời tạo tài khoản hoặc đăng nhập.
 function AccountPrompt({ message, onClose }: { message: string; onClose: () => void }) {
+  useBackClose(true, onClose);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -1568,6 +1640,80 @@ function AccountPrompt({ message, onClose }: { message: string; onClose: () => v
           <button type="button" onClick={onClose} className="mt-1 text-[12.5px] text-taupe underline-offset-4 hover:underline">
             Để sau
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type HistoryItem = { id: string; style: string; createdAt: number };
+
+const dayLabel = (t: number) => {
+  const d = new Date(t);
+  const today = new Date();
+  const diff = Math.round((new Date(today.toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 86_400_000);
+  return diff === 0 ? "Hôm nay" : diff === 1 ? "Hôm qua" : d.toLocaleDateString("vi-VN", { day: "numeric", month: "numeric", year: "numeric" });
+};
+
+// Lịch sử ảnh đã tạo: lưới ảnh thu nhỏ theo ngày, chạm để xem lớn / lưu / làm video.
+function HistorySheet({ rev, guest, onClose, onOpen }: { rev: number; guest: boolean; onClose: () => void; onOpen: (id: string) => void }) {
+  useBackClose(true, onClose);
+  const [items, setItems] = useState<HistoryItem[] | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    fetch("/api/history")
+      .then((r) => r.json())
+      .then((d) => active && (d.error ? setError(d.error) : setItems(d.items)))
+      .catch(() => active && setError("Không tải được lịch sử, vui lòng thử lại."));
+    return () => {
+      active = false;
+    };
+  }, [rev]);
+  const groups = (items ?? []).reduce<{ day: string; list: HistoryItem[] }[]>((acc, it) => {
+    const day = dayLabel(it.createdAt);
+    const last = acc[acc.length - 1];
+    if (last?.day === day) last.list.push(it);
+    else acc.push({ day, list: [it] });
+    return acc;
+  }, []);
+
+  return (
+    <div className="fade-up fixed inset-0 z-50 flex flex-col bg-ivory">
+      <div className="flex items-center gap-3 border-b border-line/70 px-4 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))]">
+        <button onClick={onClose} className="flex h-9 items-center gap-1 rounded-full border border-line bg-cream pl-2.5 pr-3.5 text-[13px] font-medium active:scale-95">
+          <IconBack /> Quay lại
+        </button>
+        <h2 className="font-serif text-[22px] leading-none">Lịch sử ảnh</h2>
+      </div>
+      <div className="no-scrollbar flex-1 overflow-y-auto px-4 pb-10 pt-4">
+        <div className="mx-auto max-w-5xl">
+          {guest && (
+            <p className="mb-4 rounded-2xl bg-gold/10 px-4 py-3 text-[12.5px] leading-snug text-taupe">
+              Ảnh đang được lưu trên trình duyệt này. <Link href="/register" className="font-semibold text-ink underline underline-offset-2">Tạo tài khoản</Link> để xem lại trên mọi thiết bị.
+            </p>
+          )}
+          {error && <p className="rounded-2xl bg-rosegold/10 px-4 py-3 text-[13px] text-rosegold">{error}</p>}
+          {!items && !error && <p className="py-16 text-center text-[13px] text-taupe">Đang tải…</p>}
+          {items && !items.length && (
+            <div className="py-16 text-center">
+              <p className="font-serif text-[20px]">Chưa có ảnh nào</p>
+              <p className="mt-1 text-[13px] text-taupe">Ảnh bạn tạo sẽ tự lưu ở đây để xem lại và tải về.</p>
+            </div>
+          )}
+          {groups.map((g) => (
+            <section key={g.day} className="mb-5">
+              <h3 className="mb-2 px-1 text-[12px] font-semibold uppercase tracking-[0.15em] text-taupe">{g.day}</h3>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+                {g.list.map((it) => (
+                  <button key={it.id} onClick={() => onOpen(it.id)} className="relative aspect-square overflow-hidden rounded-2xl bg-line/40 active:scale-[0.97]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`/api/history/${it.id}?thumb=1`} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       </div>
     </div>

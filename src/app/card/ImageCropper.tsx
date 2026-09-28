@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import css from "./CanvasEditor.module.css";
+import { useBackClose } from "../use-back-close";
 
 type Crop = { x: number; y: number; w: number; h: number }; // theo điểm ảnh của ảnh gốc
 const ASPECTS: [string, number | null][] = [
@@ -16,6 +17,7 @@ const MAX_SIDE = 2400;
 
 // Cắt ảnh + bo góc / cắt tròn. Kết quả là ảnh PNG mới (nền trong suốt ở phần góc bo).
 export function ImageCropper({ src, onApply, onClose }: { src: string; onApply: (dataUrl: string, width: number, height: number) => void; onClose: () => void }) {
+  useBackClose(true, onClose);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [crop, setCrop] = useState<Crop>({ x: 0, y: 0, w: 1, h: 1 });
   const [aspect, setAspect] = useState<number | null>(null);

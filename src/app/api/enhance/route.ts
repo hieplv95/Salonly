@@ -1,6 +1,7 @@
 import { cleanImageModel, cleanNote, cleanRatio, enhanceImage, friendlyError, isDemo, parseDataUrl } from "@/lib/gemini";
 import { apiMember } from "@/lib/auth/session";
 import { finalize, release, reserveSlot, usageInfo } from "@/lib/usage";
+import { ownerOf, saveToHistory } from "@/lib/history";
 
 export const maxDuration = 120;
 
@@ -17,7 +18,10 @@ export async function POST(req: Request) {
   try {
     const out = await enhanceImage(parseDataUrl(image), styleId, cleanNote(note), cleanRatio(ratio), chosen);
     if (slot) finalize(slot.id, "image", out.model, out.source);
-    return Response.json({ image: out.url, model: out.model, demo, ...usageInfo(user, visitor) });
+    // Lưu vào lịch sử để khách xem lại sau; lỗi lưu không ảnh hưởng kết quả trả về.
+    const owner = demo ? null : ownerOf(user, visitor);
+    const historyId = owner ? await saveToHistory(owner, out.url, String(styleId ?? ""), out.model).catch((e) => (console.error("[history]", e), null)) : null;
+    return Response.json({ image: out.url, model: out.model, demo, historyId, ...usageInfo(user, visitor) });
   } catch (e) {
     if (slot) release(slot.id);
     return Response.json({ error: friendlyError(e) }, { status: 500 });

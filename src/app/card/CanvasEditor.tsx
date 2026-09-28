@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { LOGO_ICONS } from "@/lib/logo-templates";
 import { downloadDesign, type ExportKind } from "../design/export";
 import { EXPORT_OPTIONS } from "../design/ExportBar";
+import { useBackClose } from "../use-back-close";
 import { LogoIcon } from "../logo/LogoSvg";
 import { CanvasSvg } from "./CanvasSvg";
 import { ImageCropper } from "./ImageCropper";
@@ -459,6 +460,12 @@ export function CanvasEditor({ initial, onChange, onClose, config = CARD_EDITOR 
     if (cancel) display(g.before);
     else if (current.current !== g.before) commit(current.current, g.before);
   };
+  // Nút Back của điện thoại: đóng bảng trượt đang mở, rồi mới thoát trình thiết kế.
+  useBackClose(true, () => {
+    finishGesture();
+    onClose();
+  });
+  useBackClose(sheet !== null, () => setSheet(null));
   // Hai ngón tay trên khung vẽ: chụm / mở để thu phóng.
   const touchStart = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== "touch") return;

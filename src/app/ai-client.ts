@@ -33,4 +33,18 @@ export async function postJson(url: string, body: unknown) {
   return data;
 }
 
+// Ảnh từ đường dẫn (VD: ảnh trong lịch sử) → data URL để gửi lại cho các công cụ AI.
+export async function urlToDataUrl(url: string): Promise<string> {
+  const blob = await fetch(url).then((r) => {
+    if (!r.ok) throw new Error("Không tải được ảnh");
+    return r.blob();
+  });
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
 export const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));

@@ -21,7 +21,7 @@ export type UserRow = {
   video_quota: number | null;
 };
 
-const SCHEMA = 4;
+const SCHEMA = 5;
 const g = globalThis as unknown as { __naileDb?: DatabaseSync; __naileDbSchema?: number };
 
 function migrate(db: DatabaseSync) {
@@ -69,6 +69,20 @@ function migrate(db: DatabaseSync) {
   if (!ucols.has("ip")) db.exec("ALTER TABLE usage ADD COLUMN ip TEXT");
   db.exec("CREATE INDEX IF NOT EXISTS usage_visitor ON usage (visitor)");
   db.exec("CREATE INDEX IF NOT EXISTS usage_ip_time ON usage (ip, created_at)");
+  // Lịch sử ảnh đã tạo: file nằm trong data/media, bảng chỉ giữ thông tin + chủ sở hữu
+  // (thành viên theo user_id; khách chưa đăng nhập theo mã trình duyệt).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS images (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      visitor TEXT,
+      style TEXT NOT NULL DEFAULT '',
+      model TEXT NOT NULL DEFAULT '',
+      ext TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS images_owner_time ON images (user_id, visitor, created_at);
+  `);
 }
 
 export function db() {
