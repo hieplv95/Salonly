@@ -120,12 +120,12 @@ export function StampStudio({ editor }: { editor: StampEditor }) {
   const pageTemplates = STAMP_TEMPLATES.slice((page - 1) * pageSize, page * pageSize);
   const brandedPages = Math.ceil(BRANDED_STAMP_TEMPLATES.length / pageSize);
   const typographyPages = Math.ceil(TYPOGRAPHY_STAMP_TEMPLATES.length / pageSize);
-  const galleryTitle =
+  const galleryGroup =
     page <= brandedPages
-      ? "20 mẫu tên tiệm mới"
+      ? `${BRANDED_STAMP_TEMPLATES.length} mẫu tên tiệm mới`
       : page <= brandedPages + typographyPages
-        ? "20 mẫu chữ mới"
-        : "20 mẫu dấu cơ bản";
+        ? `${TYPOGRAPHY_STAMP_TEMPLATES.length} mẫu chữ mới`
+        : `${STAMP_TEMPLATES.length - BRANDED_STAMP_TEMPLATES.length - TYPOGRAPHY_STAMP_TEMPLATES.length} mẫu dấu cơ bản`;
   const usesTagline = design.templateId === "ring-text";
   // Bản thiết kế tự do của mẫu đang chọn (nếu khách đã mở trình thiết kế).
   const draft = useCanvasDraft(`stamp:${design.templateId}`);
@@ -152,10 +152,10 @@ export function StampStudio({ editor }: { editor: StampEditor }) {
           Mẫu con dấu · Trang {page}/{pageCount}
         </p>
         <h2 className="mt-1 font-serif text-[26px] leading-tight">
-          {galleryTitle}
+          {STAMP_TEMPLATES.length} mẫu con dấu
         </h2>
         <p className="mt-1 text-xs text-taupe">
-          Chạm để dùng mẫu · tên tiệm và màu mực đều sửa được
+          {galleryGroup} · chạm để dùng mẫu · tên tiệm và màu mực đều sửa được
         </p>
       </div>
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">

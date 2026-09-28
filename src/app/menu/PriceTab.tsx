@@ -184,9 +184,9 @@ function PriceGallery({ tab }: { tab: PriceTab }) {
     <section ref={ref} className="scroll-mt-4">
       <div className="mb-4 px-1">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-gold">Mẫu bảng giá · trang {page + 1}/{pages}</p>
-        <h2 className="mt-1 font-serif text-[26px] leading-tight">{menuPage ? `${MENU_TEMPLATES.length} menu 2 mặt cho tiệm nail` : `${PRICE_TEMPLATES.length} mẫu bảng giá có bìa`}</h2>
+        <h2 className="mt-1 font-serif text-[26px] leading-tight">{MENU_TEMPLATES.length + PRICE_TEMPLATES.length} mẫu bảng giá cho tiệm nail</h2>
         <p className="mt-1 text-xs text-taupe">
-          {menuPage ? "Mặt trước: logo, ảnh móng, liên hệ, mã QR · mặt sau: bảng giá đầy đủ" : "Mỗi mẫu có bìa riêng và mặt sau bảng giá · giữ nguyên nội dung bạn đã nhập"}
+          {menuPage ? `${MENU_TEMPLATES.length} menu 2 mặt · mặt trước: logo, ảnh móng, liên hệ, mã QR · mặt sau: bảng giá đầy đủ` : `${PRICE_TEMPLATES.length} mẫu có bìa · mỗi mẫu có bìa riêng và mặt sau bảng giá · giữ nguyên nội dung bạn đã nhập`}
         </p>
         <div className="mt-3 flex gap-1.5 text-[11px] font-medium">
           <button type="button" onClick={() => setGallerySide("front")} aria-pressed={gallerySide === "front"} className={chip(gallerySide === "front")}>

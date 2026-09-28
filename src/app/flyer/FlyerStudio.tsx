@@ -130,7 +130,7 @@ export function FlyerStudio({ editor, gallery }: { editor: FlyerEditor; gallery?
       {gallery ?? <div ref={galleryRef} className="scroll-mt-4">
         <div className="mb-3 px-1">
           <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-gold">Tờ rơi A4 · trang {page + 1}/{pages}</p>
-          <h2 className="mt-1 font-serif text-[27px] leading-tight">20 mẫu khai trương tiệm nail</h2>
+          <h2 className="mt-1 font-serif text-[27px] leading-tight">{FLYER_TEMPLATES.length} mẫu khai trương tiệm nail</h2>
           <p className="mt-1 text-xs text-taupe">Ảnh móng chụp thật ở mặt trước · 20 mặt sau riêng · đổi mẫu vẫn giữ nội dung</p>
           <div className="mt-3 flex gap-1.5 text-[11px] font-medium">
             <button type="button" onClick={() => setGallerySide("front")} aria-pressed={gallerySide === "front"} className={`${chip(gallerySide === "front")} px-3 py-1.5`}>Xem mặt trước</button>

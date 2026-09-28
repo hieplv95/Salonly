@@ -151,9 +151,9 @@ function FlyerGallery({ tab }: { tab: FlyerTab }) {
     <div ref={ref} className="scroll-mt-4">
       <div className="mb-3 px-1">
         <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-gold">Tờ rơi A4 · trang {page + 1}/{pages}</p>
-        <h2 className="mt-1 font-serif text-[27px] leading-tight">{promoPage ? `${PROMO_TEMPLATES.length} mẫu quảng cáo khai trương & giảm giá` : `${FLYER_TEMPLATES.length} mẫu khai trương 2 mặt`}</h2>
+        <h2 className="mt-1 font-serif text-[27px] leading-tight">{PROMO_TEMPLATES.length + FLYER_TEMPLATES.length} mẫu tờ rơi quảng cáo</h2>
         <p className="mt-1 text-xs text-taupe">
-          {promoPage ? "2 mặt · mặt trước ưu đãi, mặt sau bảng giá đầy đủ · đổi mẫu vẫn giữ tên tiệm và bảng giá" : "Ảnh móng chụp thật ở mặt trước · mặt sau là lời mời"}
+          {promoPage ? `${PROMO_TEMPLATES.length} mẫu khai trương & giảm giá · mặt trước ưu đãi, mặt sau bảng giá đầy đủ · đổi mẫu vẫn giữ tên tiệm và bảng giá` : `${FLYER_TEMPLATES.length} mẫu khai trương 2 mặt · ảnh móng chụp thật ở mặt trước · mặt sau là lời mời`}
         </p>
         {promoPage && (
           <div className="mt-3 flex gap-1.5 text-[11px] font-medium">
