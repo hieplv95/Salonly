@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 // trình thiết kế, cắt ảnh…) thay vì rời khỏi app. Mỗi lớp phủ mở = 1 bước trong lịch sử trình duyệt;
 // đóng bằng nút trên màn hình thì lùi lại đúng số bước đó (bỏ qua sự kiện do chính app gây ra).
 
-type Entry = { close: () => void };
+type Entry = { close: () => void; url: string };
 const stack: Entry[] = [];
 let skip = 0;
 let pendingBack = 0;
@@ -45,13 +45,16 @@ export function useBackClose(open: boolean, onClose: () => void) {
       history.scrollRestoration = "manual";
       listening = true;
     }
-    const entry: Entry = { close: () => latest.current() };
+    const entry: Entry = { close: () => latest.current(), url: location.pathname + location.search };
     stack.push(entry);
     history.pushState({ overlay: stack.length }, "");
     return () => {
       const i = stack.indexOf(entry);
       if (i === -1) return; // đã đóng bằng nút Back: bước lịch sử đã được dùng
       stack.splice(i, 1);
+      // Lớp phủ đóng vì đã chuyển sang trang khác (VD: bấm "Tạo tài khoản" → /register):
+      // không lùi lịch sử, nếu không sẽ bị kéo ngược về trang cũ.
+      if (location.pathname + location.search !== entry.url) return;
       scheduleBack();
     };
   }, [open]);
