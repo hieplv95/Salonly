@@ -45,7 +45,7 @@ export function AccessCard() {
         <p className="mt-1 text-[11px] text-taupe">Hết lượt, khách được mời tạo tài khoản. Nhập 0 = phải tạo tài khoản mới dùng được.</p>
         {stats && (
           <p className="mt-2 text-[12px]">
-            Tháng này: <b>{usedOf(stats.imgMonth, stats.limits.image)}</b> ảnh · <b>{usedOf(stats.vidMonth, stats.limits.video)}</b> video · {vnd(stats.costMonth)}
+            Tháng này: <b>{usedOf(stats.imgMonth, stats.limits.image)}</b> ảnh · <b>{usedOf(stats.vidMonth, stats.limits.video)}</b> video · {vnd(stats.cost)}
           </p>
         )}
         <form action={setUserQuota} className="mt-3 grid grid-cols-[1fr_1fr_auto] items-end gap-2">

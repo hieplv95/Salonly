@@ -4,6 +4,8 @@ import { guestCustomer, listCustomers, overview, type CustomerRow } from "@/lib/
 import { requireAdmin } from "@/lib/auth/session";
 import { getDefaultQuotas } from "@/lib/settings";
 import { dateTime, sqlDate, usedOf, vnd } from "./format";
+import { parseRange, type Range } from "./range";
+import { RangeFilter, RangeHidden } from "./RangeFilter";
 
 export const metadata: Metadata = { title: "Khách hàng · Quản trị Salonly" };
 
@@ -19,8 +21,9 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 
 const avatar = "grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gold/15 font-serif text-[18px] text-gold";
 
-// Một khách hàng (thành viên): lượt dùng tháng này so với hạn mức và chi phí.
-function CustomerCard({ c }: { c: CustomerRow }) {
+// Một khách hàng (thành viên): lượt dùng trong khoảng đang lọc và chi phí. "Hết lượt" luôn theo hạn mức tháng.
+function CustomerCard({ c, range }: { c: CustomerRow; range: Range }) {
+  const month = range.key === "month";
   const out = (c.limits.image !== null && c.imgMonth >= c.limits.image) || (c.limits.video !== null && c.vidMonth >= c.limits.video);
   return (
     <Link
@@ -40,16 +43,16 @@ function CustomerCard({ c }: { c: CustomerRow }) {
       </div>
       <dl className="grid w-full grid-cols-3 gap-2 text-[12px] sm:w-auto sm:min-w-[330px]">
         <div className="rounded-2xl bg-white/70 px-3 py-2">
-          <dt className="text-taupe">Ảnh / tháng</dt>
-          <dd className="font-semibold">{usedOf(c.imgMonth, c.limits.image)}</dd>
+          <dt className="text-taupe">Ảnh</dt>
+          <dd className="font-semibold">{month ? usedOf(c.img, c.limits.image) : c.img}</dd>
         </div>
         <div className="rounded-2xl bg-white/70 px-3 py-2">
-          <dt className="text-taupe">Video / tháng</dt>
-          <dd className="font-semibold">{usedOf(c.vidMonth, c.limits.video)}</dd>
+          <dt className="text-taupe">Video</dt>
+          <dd className="font-semibold">{month ? usedOf(c.vid, c.limits.video) : c.vid}</dd>
         </div>
         <div className="rounded-2xl bg-white/70 px-3 py-2">
-          <dt className="text-taupe">Chi phí tháng</dt>
-          <dd className="font-semibold">{vnd(c.costMonth)}</dd>
+          <dt className="text-taupe">Chi phí</dt>
+          <dd className="font-semibold">{vnd(c.cost)}</dd>
         </div>
       </dl>
       <p className="w-full text-[11px] text-taupe sm:w-auto sm:text-right">{c.lastUsed ? `Dùng gần nhất ${dateTime(c.lastUsed)}` : "Chưa tạo ảnh/video"}</p>
@@ -59,21 +62,31 @@ function CustomerCard({ c }: { c: CustomerRow }) {
 
 export default async function CustomersPage({ searchParams }: PageProps<"/admin">) {
   const me = await requireAdmin();
-  const { q } = await searchParams;
+  const params = await searchParams;
+  const { q } = params;
   const search = typeof q === "string" ? q.trim().slice(0, 60) : "";
-  const o = overview();
-  const customers = listCustomers(search, "member");
+  const range = parseRange(params);
+  const o = overview(range);
+  const customers = listCustomers(search, "member", range);
   const admins = listCustomers("", "admin");
-  const guest = guestCustomer();
+  const guest = guestCustomer(range);
   const d = getDefaultQuotas();
+  const month = range.key === "month";
+  // Ghi chú dưới số liệu: tháng này → hạn mức mặc định; khoảng khác → ngày cụ thể.
+  const day = (s: string) => s.split("-").reverse().join("/");
+  const days = Math.round((range.to - range.from) / 86_400_000);
+  // Tuỳ chỉnh: tên thẻ đã có ngày → ghi số ngày; còn lại ghi ngày cụ thể.
+  const span =
+    range.key === "custom" ? `${days} ngày` : range.fromDay === range.toDay ? day(range.fromDay) : `${day(range.fromDay)} – ${day(range.toDay)}`;
 
   return (
     <>
+      <RangeFilter range={range} q={search} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Khách hàng" value={`${o.members}`} note={o.locked ? `${o.locked} tài khoản đang bị khoá` : "Thành viên đã đăng ký"} />
-        <Stat label="Ảnh tháng này" value={`${o.imgMonth}`} note={`Hạn mức mặc định: ${d.image ?? "không giới hạn"}`} />
-        <Stat label="Video tháng này" value={`${o.vidMonth}`} note={`Hạn mức mặc định: ${d.video ?? "không giới hạn"}`} />
-        <Stat label="Chi phí tháng này" value={vnd(o.costMonth)} note={`Từ trước tới nay: ${vnd(o.costAll)}`} />
+        <Stat label={`Ảnh ${range.label}`} value={`${o.img}`} note={month ? `Hạn mức mặc định: ${d.image ?? "không giới hạn"}` : span} />
+        <Stat label={`Video ${range.label}`} value={`${o.vid}`} note={month ? `Hạn mức mặc định: ${d.video ?? "không giới hạn"}` : span} />
+        <Stat label={`Chi phí ${range.label}`} value={vnd(o.cost)} note={`Từ trước tới nay: ${vnd(o.costAll)}`} />
       </div>
       <p className="mt-2 px-1 text-[11px] text-taupe">Chi phí là ước tính theo bảng giá model, hoá đơn thật xem trong Google Cloud Billing.</p>
 
@@ -83,6 +96,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin"
           <p className="text-[13px] text-taupe">{search ? `${customers.length} kết quả cho “${search}”` : `${customers.length} thành viên đã đăng ký`}</p>
         </div>
         <form className="flex w-full gap-2 sm:w-auto" role="search">
+          <RangeHidden range={range} />
           <input
             name="q"
             defaultValue={search}
@@ -96,7 +110,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin"
       <ul className="mt-4 space-y-2.5">
         {customers.map((c) => (
           <li key={c.id}>
-            <CustomerCard c={c} />
+            <CustomerCard c={c} range={range} />
           </li>
         ))}
         {!customers.length && (
@@ -111,7 +125,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/admin"
           <h2 className="px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">Khách không đăng nhập</h2>
           <p className="mt-1 px-1 text-[12px] text-taupe">Lượt tạo của người dùng app khi chưa đăng nhập (lúc tắt “Bắt buộc đăng nhập”), tính chung 1 hạn mức.</p>
           <div className="mt-3">
-            <CustomerCard c={{ ...guest, username: "Khách vãng lai" }} />
+            <CustomerCard c={{ ...guest, username: "Khách vãng lai" }} range={range} />
           </div>
         </section>
       )}
